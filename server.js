@@ -1,0 +1,208 @@
+const express = require('express');
+const sqlite3 = require('sqlite3').verbose();
+const bcrypt = require('bcryptjs');
+const jwt = require('jsonwebtoken');
+const cors = require('cors');
+const { MercadoPagoConfig, Preference } = require('mercadopago');
+
+const app = express();
+const PORT = process.env.PORT || 3001;
+const JWT_SECRET = process.env.JWT_SECRET || 'shopmanstore_secret_key_2024';
+
+// Configurar Mercado Pago
+const MP_TOKEN = process.env.MP_TOKEN || 'APP_USR-5802293204482723-111823-41d8e3354a2e15c8dbc4802b59524b0d-3001373888';
+let mpClient = null;
+let mpPreference = null;
+
+try {
+  mpClient = new MercadoPagoConfig({ accessToken: MP_TOKEN });
+  mpPreference = new Preference(mpClient);
+  console.log('Mercado Pago configurado correctamente');
+} catch (error) {
+  console.error('Error al configurar Mercado Pago:', error.message);
+}
+
+app.use(cors());
+app.use(express.json({ limit: '50mb' }));
+app.use(express.static('public'));
+
+// Database
+const db = new sqlite3.Database('./store.db');
+
+db.serialize(() => {
+  db.run(`CREATE TABLE IF NOT EXISTS users (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    username TEXT UNIQUE,
+    email TEXT UNIQUE,
+    password TEXT,
+    role TEXT DEFAULT 'cliente',
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+  )`);
+
+  db.run(`CREATE TABLE IF NOT EXISTS products (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    name TEXT,
+    description TEXT,
+    price REAL,
+    image TEXT,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+  )`);
+
+  db.run(`CREATE TABLE IF NOT EXISTS orders (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    user_id INTEGER,
+    total REAL,
+    payment_method TEXT,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+  )`);
+
+  db.run(`CREATE TABLE IF NOT EXISTS logs (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    user_id INTEGER,
+    action TEXT,
+    details TEXT,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+  )`);
+
+  const adminPass = bcrypt.hashSync('admin123', 10);
+  db.run(`INSERT OR IGNORE INTO users (username, email, password, role) 
+          VALUES ('admin', 'admin@store.com', ?, 'admin')`, [adminPass]);
+});
+
+const auth = (req, res, next) => {
+  const token = req.headers.authorization?.split(' ')[1];
+  if (!token) return res.status(401).json({ error: 'No autorizado' });
+  
+  jwt.verify(token, JWT_SECRET, (err, decoded) => {
+    if (err) return res.status(401).json({ error: 'Token inválido' });
+    req.user = decoded;
+    next();
+  });
+};
+
+const isAdmin = (req, res, next) => {
+  if (req.user.role !== 'admin') return res.status(403).json({ error: 'Requiere admin' });
+  next();
+};
+
+// AUTH
+app.post('/api/login', (req, res) => {
+  const { username, password } = req.body;
+  
+  db.get('SELECT * FROM users WHERE username = ?', [username], (err, user) => {
+    if (!user || !bcrypt.compareSync(password, user.password)) {
+      return res.status(401).json({ error: 'Credenciales inválidas' });
+    }
+    
+    const token = jwt.sign({ id: user.id, username: user.username, role: user.role }, JWT_SECRET);
+    res.json({ token, user: { id: user.id, username: user.username, role: user.role } });
+  });
+});
+
+app.post('/api/register', (req, res) => {
+  const { username, email, password } = req.body;
+  const hash = bcrypt.hashSync(password, 10);
+  
+  db.run('INSERT INTO users (username, email, password) VALUES (?, ?, ?)', 
+    [username, email, hash], 
+    function(err) {
+      if (err) return res.status(400).json({ error: 'Usuario ya existe' });
+      res.json({ message: 'Registrado exitosamente' });
+    }
+  );
+});
+
+// PRODUCTS
+app.get('/api/products', (req, res) => {
+  db.all('SELECT * FROM products', (err, rows) => {
+    res.json(rows || []);
+  });
+});
+
+app.post('/api/products', auth, isAdmin, (req, res) => {
+  const { name, description, price, image } = req.body;
+  db.run('INSERT INTO products (name, description, price, image) VALUES (?, ?, ?, ?)',
+    [name, description, price, image],
+    function(err) {
+      if (err) return res.status(500).json({ error: 'Error al crear' });
+      res.json({ id: this.lastID });
+    }
+  );
+});
+
+app.put('/api/products/:id', auth, isAdmin, (req, res) => {
+  const { name, description, price, image } = req.body;
+  db.run('UPDATE products SET name=?, description=?, price=?, image=? WHERE id=?',
+    [name, description, price, image, req.params.id],
+    (err) => {
+      if (err) return res.status(500).json({ error: 'Error al actualizar' });
+      res.json({ message: 'Actualizado' });
+    }
+  );
+});
+
+app.delete('/api/products/:id', auth, isAdmin, (req, res) => {
+  db.run('DELETE FROM products WHERE id=?', [req.params.id], (err) => {
+    if (err) return res.status(500).json({ error: 'Error al eliminar' });
+    res.json({ message: 'Eliminado' });
+  });
+});
+
+// USERS
+app.get('/api/users', auth, isAdmin, (req, res) => {
+  db.all('SELECT id, username, email, role FROM users', (err, rows) => {
+    res.json(rows || []);
+  });
+});
+
+app.put('/api/users/:id/role', auth, isAdmin, (req, res) => {
+  db.run('UPDATE users SET role=? WHERE id=?', [req.body.role, req.params.id], (err) => {
+    if (err) return res.status(500).json({ error: 'Error' });
+    res.json({ message: 'Rol actualizado' });
+  });
+});
+
+// ORDERS
+app.post('/api/orders', auth, (req, res) => {
+  const { total, paymentMethod } = req.body;
+  db.run('INSERT INTO orders (user_id, total, payment_method) VALUES (?, ?, ?)',
+    [req.user.id, total, paymentMethod],
+    (err) => {
+      if (err) return res.status(500).json({ error: 'Error' });
+      res.json({ message: 'Orden creada' });
+    }
+  );
+});
+
+// LOGS
+app.get('/api/logs', auth, isAdmin, (req, res) => {
+  db.all('SELECT l.*, u.username FROM logs l LEFT JOIN users u ON l.user_id=u.id ORDER BY l.created_at DESC LIMIT 50',
+    (err, rows) => {
+      res.json(rows || []);
+    }
+  );
+});
+
+// MERCADO PAGO
+app.post('/api/mp-link', auth, async (req, res) => {
+  if (!mpPreference) return res.status(503).json({ error: 'MP no configurado' });
+  
+  try {
+    const { items, total } = req.body;
+    const body = {
+      items: items.map(i => ({
+        title: i.name,
+        unit_price: Number(i.price),
+        quantity: Number(i.qty),
+        currency_id: 'ARS'
+      }))
+    };
+    
+    const response = await mpPreference.create({ body });
+    res.json({ link: response.init_point || response.sandbox_init_point });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.listen(PORT, () => console.log('Server: http://localhost:' + PORT));
