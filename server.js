@@ -1,4 +1,5 @@
 const express = require('express');
+const path = require('path');
 const sqlite3 = require('sqlite3').verbose();
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
@@ -24,7 +25,12 @@ try {
 
 app.use(cors());
 app.use(express.json({ limit: '50mb' }));
-app.use(express.static('public'));
+app.use(express.static(path.join(__dirname, 'public')));
+
+// Ruta principal para servir index.html
+app.get('/', (req, res) => {
+  res.sendFile(path.join(__dirname, 'public', 'index.html'));
+});
 
 // Database
 const db = new sqlite3.Database('./store.db');
@@ -205,4 +211,17 @@ app.post('/api/mp-link', auth, async (req, res) => {
   }
 });
 
-app.listen(PORT, () => console.log('Server: http://localhost:' + PORT));
+// Catch-all route para SPA (debe ir al final)
+app.get('*', (req, res) => {
+  // Solo servir index.html si no es una ruta de API
+  if (!req.path.startsWith('/api')) {
+    res.sendFile(path.join(__dirname, 'public', 'index.html'));
+  } else {
+    res.status(404).json({ error: 'Ruta no encontrada' });
+  }
+});
+
+app.listen(PORT, () => {
+  console.log('Server: http://localhost:' + PORT);
+  console.log('Environment: ' + (process.env.NODE_ENV || 'development'));
+});
