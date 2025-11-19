@@ -1,14 +1,16 @@
 const express = require('express');
 const path = require('path');
-const sqlite3 = require('sqlite3').verbose();
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const cors = require('cors');
 const { MercadoPagoConfig, Preference } = require('mercadopago');
+const db = require('./db-config');
+const initDatabase = require('./init-db');
 
 const app = express();
 const PORT = process.env.PORT || 3001;
 const JWT_SECRET = process.env.JWT_SECRET || 'shopmanstore_secret_key_2024';
+const isPostgres = !!process.env.DATABASE_URL;
 
 // Configurar Mercado Pago
 const MP_TOKEN = process.env.MP_TOKEN || 'APP_USR-5802293204482723-111823-41d8e3354a2e15c8dbc4802b59524b0d-3001373888';
@@ -32,48 +34,8 @@ app.get('/', (req, res) => {
   res.sendFile(path.join(__dirname, 'public', 'index.html'));
 });
 
-// Database
-const db = new sqlite3.Database('./store.db');
-
-db.serialize(() => {
-  db.run(`CREATE TABLE IF NOT EXISTS users (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    username TEXT UNIQUE,
-    email TEXT UNIQUE,
-    password TEXT,
-    role TEXT DEFAULT 'cliente',
-    created_at DATETIME DEFAULT CURRENT_TIMESTAMP
-  )`);
-
-  db.run(`CREATE TABLE IF NOT EXISTS products (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    name TEXT,
-    description TEXT,
-    price REAL,
-    image TEXT,
-    created_at DATETIME DEFAULT CURRENT_TIMESTAMP
-  )`);
-
-  db.run(`CREATE TABLE IF NOT EXISTS orders (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    user_id INTEGER,
-    total REAL,
-    payment_method TEXT,
-    created_at DATETIME DEFAULT CURRENT_TIMESTAMP
-  )`);
-
-  db.run(`CREATE TABLE IF NOT EXISTS logs (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    user_id INTEGER,
-    action TEXT,
-    details TEXT,
-    created_at DATETIME DEFAULT CURRENT_TIMESTAMP
-  )`);
-
-  const adminPass = bcrypt.hashSync('admin123', 10);
-  db.run(`INSERT OR IGNORE INTO users (username, email, password, role) 
-          VALUES ('admin', 'admin@store.com', ?, 'admin')`, [adminPass]);
-});
+// Inicializar base de datos
+initDatabase(db, isPostgres);
 
 const auth = (req, res, next) => {
   const token = req.headers.authorization?.split(' ')[1];
