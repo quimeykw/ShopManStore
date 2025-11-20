@@ -409,12 +409,7 @@ function openProductModal(productId = null) {
     $('productDesc').value = p.description;
     $('productPrice').value = p.price;
     $('productStock').value = p.stock || 0;
-    
-    // Marcar talles
-    const sizes = p.sizes ? p.sizes.split(',') : [];
-    document.querySelectorAll('.size-checkbox').forEach(cb => {
-      cb.checked = sizes.includes(cb.value);
-    });
+    $('productSizes').value = p.sizes || '';
     
     $('imagePreview').innerHTML = `<img src="${p.image}" class="w-full h-32 object-cover rounded">`;
   } else {
@@ -424,7 +419,7 @@ function openProductModal(productId = null) {
     $('productDesc').value = '';
     $('productPrice').value = '';
     $('productStock').value = '0';
-    document.querySelectorAll('.size-checkbox').forEach(cb => cb.checked = false);
+    $('productSizes').value = '';
     $('imagePreview').innerHTML = '';
   }
   $('productModal').classList.remove('hidden');
@@ -442,8 +437,9 @@ async function saveProduct() {
   const stock = parseInt($('productStock').value) || 0;
   const imageFile = $('productImage').files[0];
   
-  // Obtener talles seleccionados
-  const sizes = Array.from(document.querySelectorAll('.size-checkbox:checked')).map(cb => cb.value);
+  // Obtener talles ingresados (limpiar espacios)
+  const sizesInput = $('productSizes').value.trim();
+  const sizes = sizesInput ? sizesInput.split(',').map(s => s.trim()).filter(s => s) : [];
   
   let image = null;
   if (imageFile) {

@@ -113,15 +113,9 @@
       <input type="number" id="productPrice" placeholder="Precio" class="w-full p-2 border rounded mb-3" step="0.01">
       
       <!-- Talles disponibles -->
-      <label class="block text-sm font-bold mb-2">Talles disponibles:</label>
-      <div class="flex flex-wrap gap-2 mb-3">
-        <label class="flex items-center"><input type="checkbox" class="size-checkbox mr-1" value="XS"> XS</label>
-        <label class="flex items-center"><input type="checkbox" class="size-checkbox mr-1" value="S"> S</label>
-        <label class="flex items-center"><input type="checkbox" class="size-checkbox mr-1" value="M"> M</label>
-        <label class="flex items-center"><input type="checkbox" class="size-checkbox mr-1" value="L"> L</label>
-        <label class="flex items-center"><input type="checkbox" class="size-checkbox mr-1" value="XL"> XL</label>
-        <label class="flex items-center"><input type="checkbox" class="size-checkbox mr-1" value="XXL"> XXL</label>
-      </div>
+      <label class="block text-sm font-bold mb-2">Talles disponibles (números):</label>
+      <input type="text" id="productSizes" placeholder="Ej: 36, 38, 40, 42, 44" class="w-full p-2 border rounded mb-1">
+      <p class="text-xs text-gray-500 mb-3">Separa los talles con comas</p>
       
       <!-- Stock disponible -->
       <input type="number" id="productStock" placeholder="Cantidad disponible" class="w-full p-2 border rounded mb-3" min="0">
