@@ -408,6 +408,14 @@ function openProductModal(productId = null) {
     $('productName').value = p.name;
     $('productDesc').value = p.description;
     $('productPrice').value = p.price;
+    $('productStock').value = p.stock || 0;
+    
+    // Marcar talles
+    const sizes = p.sizes ? p.sizes.split(',') : [];
+    document.querySelectorAll('.size-checkbox').forEach(cb => {
+      cb.checked = sizes.includes(cb.value);
+    });
+    
     $('imagePreview').innerHTML = `<img src="${p.image}" class="w-full h-32 object-cover rounded">`;
   } else {
     $('productModalTitle').textContent = 'Agregar Producto';
@@ -415,6 +423,8 @@ function openProductModal(productId = null) {
     $('productName').value = '';
     $('productDesc').value = '';
     $('productPrice').value = '';
+    $('productStock').value = '0';
+    document.querySelectorAll('.size-checkbox').forEach(cb => cb.checked = false);
     $('imagePreview').innerHTML = '';
   }
   $('productModal').classList.remove('hidden');
@@ -429,7 +439,11 @@ async function saveProduct() {
   const name = $('productName').value;
   const description = $('productDesc').value;
   const price = parseFloat($('productPrice').value);
+  const stock = parseInt($('productStock').value) || 0;
   const imageFile = $('productImage').files[0];
+  
+  // Obtener talles seleccionados
+  const sizes = Array.from(document.querySelectorAll('.size-checkbox:checked')).map(cb => cb.value);
   
   let image = null;
   if (imageFile) {
@@ -445,7 +459,7 @@ async function saveProduct() {
     await fetch(url, {
       method,
       headers: {'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token},
-      body: JSON.stringify({name, description, price, image})
+      body: JSON.stringify({name, description, price, image, sizes, stock})
     });
     
     $('productModal').classList.add('hidden');
@@ -544,4 +558,15 @@ async function loadLogs() {
   } catch (err) {
     console.error(err);
   }
+}
+
+
+// Función para ampliar imagen
+function zoomImage(imageSrc) {
+  $('zoomedImage').src = imageSrc;
+  $('imageZoomModal').classList.remove('hidden');
+}
+
+function closeImageZoom() {
+  $('imageZoomModal').classList.add('hidden');
 }
