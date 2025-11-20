@@ -3,7 +3,7 @@
 ## 🎯 Nuevas funciones implementadas:
 
 1. **Zoom de imágenes** - Click en cualquier imagen para ampliarla
-2. **Talles disponibles** - Selección múltiple (XS, S, M, L, XL, XXL)
+2. **Talles disponibles** - Ingresa talles numéricos separados por comas (Ej: 36, 38, 40, 42, 44)
 3. **Control de stock** - Cantidad disponible de cada producto
 4. **Botón deshabilitado** - Si stock = 0, no se puede agregar al carrito
 
@@ -141,7 +141,7 @@ Si ya tienes la app en Render:
 ### Como Admin:
 1. Panel Admin → Productos → Agregar
 2. Llena nombre, descripción, precio
-3. **Selecciona talles** (puedes marcar varios)
+3. **Ingresa talles** separados por comas (Ej: 36, 38, 40, 42, 44)
 4. **Ingresa stock** (cantidad disponible)
 5. Sube imagen
 6. Guarda

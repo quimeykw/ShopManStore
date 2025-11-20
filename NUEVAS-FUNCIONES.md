@@ -3,7 +3,7 @@
 ## ✅ Funciones implementadas:
 
 1. **Ampliar imagen** - Click en cualquier imagen de producto para verla en grande
-2. **Talles disponibles** - Selecciona múltiples talles (XS, S, M, L, XL, XXL)
+2. **Talles disponibles** - Ingresa talles numéricos separados por comas (Ej: 36, 38, 40, 42)
 3. **Stock disponible** - Cantidad de productos disponibles
 
 ## 📋 Cambios realizados:
