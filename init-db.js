@@ -19,6 +19,8 @@ function initDatabase(db, isPostgres = false) {
         description TEXT,
         price REAL,
         image TEXT,
+        sizes TEXT,
+        stock INTEGER DEFAULT 0,
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
       )`);
 
@@ -63,6 +65,8 @@ function initDatabase(db, isPostgres = false) {
         description TEXT,
         price REAL,
         image TEXT,
+        sizes TEXT,
+        stock INTEGER DEFAULT 0,
         created_at DATETIME DEFAULT CURRENT_TIMESTAMP
       )`);
 

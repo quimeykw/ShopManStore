@@ -88,9 +88,10 @@ app.get('/api/products', (req, res) => {
 });
 
 app.post('/api/products', auth, isAdmin, (req, res) => {
-  const { name, description, price, image } = req.body;
-  db.run('INSERT INTO products (name, description, price, image) VALUES (?, ?, ?, ?)',
-    [name, description, price, image],
+  const { name, description, price, image, sizes, stock } = req.body;
+  const sizesStr = Array.isArray(sizes) ? sizes.join(',') : sizes || '';
+  db.run('INSERT INTO products (name, description, price, image, sizes, stock) VALUES (?, ?, ?, ?, ?, ?)',
+    [name, description, price, image, sizesStr, stock || 0],
     function(err) {
       if (err) return res.status(500).json({ error: 'Error al crear' });
       res.json({ id: this.lastID });
@@ -99,9 +100,10 @@ app.post('/api/products', auth, isAdmin, (req, res) => {
 });
 
 app.put('/api/products/:id', auth, isAdmin, (req, res) => {
-  const { name, description, price, image } = req.body;
-  db.run('UPDATE products SET name=?, description=?, price=?, image=? WHERE id=?',
-    [name, description, price, image, req.params.id],
+  const { name, description, price, image, sizes, stock } = req.body;
+  const sizesStr = Array.isArray(sizes) ? sizes.join(',') : sizes || '';
+  db.run('UPDATE products SET name=?, description=?, price=?, image=?, sizes=?, stock=? WHERE id=?',
+    [name, description, price, image, sizesStr, stock || 0, req.params.id],
     (err) => {
       if (err) return res.status(500).json({ error: 'Error al actualizar' });
       res.json({ message: 'Actualizado' });
