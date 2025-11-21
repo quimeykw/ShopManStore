@@ -23,6 +23,15 @@ function initDatabase(db, isPostgres = false) {
         stock INTEGER DEFAULT 0,
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
       )`);
+      
+      // Migrar columnas si la tabla ya existe (para bases de datos antiguas)
+      db.run(`ALTER TABLE products ADD COLUMN IF NOT EXISTS sizes TEXT`, (err) => {
+        if (!err) console.log('✓ Columna sizes verificada/agregada');
+      });
+      
+      db.run(`ALTER TABLE products ADD COLUMN IF NOT EXISTS stock INTEGER DEFAULT 0`, (err) => {
+        if (!err) console.log('✓ Columna stock verificada/agregada');
+      });
 
       db.run(`CREATE TABLE IF NOT EXISTS orders (
         id SERIAL PRIMARY KEY,
