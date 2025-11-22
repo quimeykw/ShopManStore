@@ -19,6 +19,7 @@ function initDatabase(db, isPostgres = false) {
         description TEXT,
         price REAL,
         image TEXT,
+        images TEXT,
         sizes TEXT,
         stock INTEGER DEFAULT 0,
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
@@ -31,6 +32,10 @@ function initDatabase(db, isPostgres = false) {
       
       db.run(`ALTER TABLE products ADD COLUMN IF NOT EXISTS stock INTEGER DEFAULT 0`, (err) => {
         if (!err) console.log('✓ Columna stock verificada/agregada');
+      });
+      
+      db.run(`ALTER TABLE products ADD COLUMN IF NOT EXISTS images TEXT`, (err) => {
+        if (!err) console.log('✓ Columna images verificada/agregada');
       });
 
       db.run(`CREATE TABLE IF NOT EXISTS orders (
@@ -74,6 +79,7 @@ function initDatabase(db, isPostgres = false) {
         description TEXT,
         price REAL,
         image TEXT,
+        images TEXT,
         sizes TEXT,
         stock INTEGER DEFAULT 0,
         created_at DATETIME DEFAULT CURRENT_TIMESTAMP
@@ -102,6 +108,20 @@ function initDatabase(db, isPostgres = false) {
               ['admin', 'admin@store.com', adminPass, 'admin'], (err) => {
         if (!err) console.log('✓ Usuario admin inicializado');
       });
+      
+      // Migrar productos existentes de image a images
+      setTimeout(() => {
+        db.all(`SELECT id, image, images FROM products WHERE images IS NULL AND image IS NOT NULL`, (err, rows) => {
+          if (!err && rows && rows.length > 0) {
+            console.log(`🔄 Migrando ${rows.length} productos a formato de múltiples imágenes...`);
+            rows.forEach(row => {
+              const imagesArray = JSON.stringify([row.image]);
+              db.run('UPDATE products SET images = ? WHERE id = ?', [imagesArray, row.id]);
+            });
+            console.log('✓ Migración de imágenes completada');
+          }
+        });
+      }, 500);
     }
   });
 }

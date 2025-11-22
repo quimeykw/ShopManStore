@@ -83,15 +83,42 @@ app.post('/api/register', (req, res) => {
 // PRODUCTS
 app.get('/api/products', (req, res) => {
   db.all('SELECT * FROM products', (err, rows) => {
-    res.json(rows || []);
+    // Deserializar images de JSON a array
+    const products = (rows || []).map(row => ({
+      ...row,
+      images: row.images ? JSON.parse(row.images) : (row.image ? [row.image] : [])
+    }));
+    res.json(products);
   });
 });
 
 app.post('/api/products', auth, isAdmin, (req, res) => {
-  const { name, description, price, image, sizes, stock } = req.body;
+  const { name, description, price, image, images, sizes, stock } = req.body;
+  
+  // Validar imágenes
+  let imageArray = images || (image ? [image] : []);
+  if (!Array.isArray(imageArray)) {
+    imageArray = [imageArray];
+  }
+  
+  // Validar máximo 5 imágenes
+  if (imageArray.length > 5) {
+    return res.status(400).json({ error: 'Máximo 5 imágenes permitidas' });
+  }
+  
+  // Validar tamaño de cada imagen (aproximadamente 2MB en base64)
+  const MAX_SIZE = 2 * 1024 * 1024 * 1.37; // Base64 es ~37% más grande
+  for (const img of imageArray) {
+    if (img && img.length > MAX_SIZE) {
+      return res.status(400).json({ error: 'Cada imagen debe ser menor a 2MB' });
+    }
+  }
+  
   const sizesStr = Array.isArray(sizes) ? sizes.join(',') : sizes || '';
-  db.run('INSERT INTO products (name, description, price, image, sizes, stock) VALUES (?, ?, ?, ?, ?, ?)',
-    [name, description, price, image, sizesStr, stock || 0],
+  const imagesJson = JSON.stringify(imageArray);
+  
+  db.run('INSERT INTO products (name, description, price, image, images, sizes, stock) VALUES (?, ?, ?, ?, ?, ?, ?)',
+    [name, description, price, imageArray[0] || null, imagesJson, sizesStr, stock || 0],
     function(err) {
       if (err) return res.status(500).json({ error: 'Error al crear' });
       res.json({ id: this.lastID });
@@ -100,10 +127,32 @@ app.post('/api/products', auth, isAdmin, (req, res) => {
 });
 
 app.put('/api/products/:id', auth, isAdmin, (req, res) => {
-  const { name, description, price, image, sizes, stock } = req.body;
+  const { name, description, price, image, images, sizes, stock } = req.body;
+  
+  // Validar imágenes
+  let imageArray = images || (image ? [image] : []);
+  if (!Array.isArray(imageArray)) {
+    imageArray = [imageArray];
+  }
+  
+  // Validar máximo 5 imágenes
+  if (imageArray.length > 5) {
+    return res.status(400).json({ error: 'Máximo 5 imágenes permitidas' });
+  }
+  
+  // Validar tamaño de cada imagen
+  const MAX_SIZE = 2 * 1024 * 1024 * 1.37;
+  for (const img of imageArray) {
+    if (img && img.length > MAX_SIZE) {
+      return res.status(400).json({ error: 'Cada imagen debe ser menor a 2MB' });
+    }
+  }
+  
   const sizesStr = Array.isArray(sizes) ? sizes.join(',') : sizes || '';
-  db.run('UPDATE products SET name=?, description=?, price=?, image=?, sizes=?, stock=? WHERE id=?',
-    [name, description, price, image, sizesStr, stock || 0, req.params.id],
+  const imagesJson = JSON.stringify(imageArray);
+  
+  db.run('UPDATE products SET name=?, description=?, price=?, image=?, images=?, sizes=?, stock=? WHERE id=?',
+    [name, description, price, imageArray[0] || null, imagesJson, sizesStr, stock || 0, req.params.id],
     (err) => {
       if (err) return res.status(500).json({ error: 'Error al actualizar' });
       res.json({ message: 'Actualizado' });
