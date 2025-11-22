@@ -5,8 +5,156 @@ let token = null;
 let products = [];
 let cart = [];
 
+// Image Gallery Component
+class ImageGallery {
+  constructor(productId, images) {
+    this.productId = productId;
+    this.images = images || [];
+    this.currentIndex = 0;
+  }
+  
+  render() {
+    if (this.images.length === 0) {
+      return '<img src="/placeholder.jpg" class="w-full h-48 object-cover rounded mb-3">';
+    }
+    
+    const mainImage = this.images[this.currentIndex];
+    const hasMultiple = this.images.length > 1;
+    
+    return `
+      <div class="relative mb-3">
+        <img src="${mainImage}" 
+             loading="lazy"
+             onclick="openImageZoom(${this.productId}, ${this.currentIndex})" 
+             class="w-full h-48 object-cover rounded cursor-pointer hover:opacity-90 transition">
+        
+        ${hasMultiple ? `
+          <!-- Navigation arrows -->
+          <button onclick="galleryPrev(${this.productId}); event.stopPropagation();" 
+                  class="absolute left-2 top-1/2 transform -translate-y-1/2 bg-black bg-opacity-50 text-white rounded-full w-8 h-8 flex items-center justify-center hover:bg-opacity-70">
+            <i class="fas fa-chevron-left"></i>
+          </button>
+          <button onclick="galleryNext(${this.productId}); event.stopPropagation();" 
+                  class="absolute right-2 top-1/2 transform -translate-y-1/2 bg-black bg-opacity-50 text-white rounded-full w-8 h-8 flex items-center justify-center hover:bg-opacity-70">
+            <i class="fas fa-chevron-right"></i>
+          </button>
+          
+          <!-- Indicators -->
+          <div class="absolute bottom-2 left-1/2 transform -translate-x-1/2 flex gap-1">
+            ${this.images.map((_, i) => `
+              <button onclick="galleryGoTo(${this.productId}, ${i}); event.stopPropagation();" 
+                      class="w-2 h-2 rounded-full ${i === this.currentIndex ? 'bg-white' : 'bg-white bg-opacity-50'}">
+              </button>
+            `).join('')}
+          </div>
+        ` : ''}
+      </div>
+      
+      ${hasMultiple ? `
+        <!-- Thumbnails -->
+        <div class="flex gap-2 mb-3 overflow-x-auto">
+          ${this.images.map((img, i) => `
+            <img src="${img}" 
+                 loading="lazy"
+                 onclick="galleryGoTo(${this.productId}, ${i})" 
+                 class="w-16 h-16 object-cover rounded cursor-pointer ${i === this.currentIndex ? 'ring-2 ring-indigo-600' : 'opacity-60 hover:opacity-100'} transition">
+          `).join('')}
+        </div>
+      ` : ''}
+    `;
+  }
+  
+  next() {
+    this.currentIndex = (this.currentIndex + 1) % this.images.length;
+    this.updateDisplay();
+  }
+  
+  prev() {
+    this.currentIndex = (this.currentIndex - 1 + this.images.length) % this.images.length;
+    this.updateDisplay();
+  }
+  
+  goTo(index) {
+    this.currentIndex = index;
+    this.updateDisplay();
+  }
+  
+  updateDisplay() {
+    // Re-render the product card
+    renderProducts();
+  }
+}
+
+// Gallery instances
+const galleries = {};
+
+// Touch Handler for swipe gestures
+class TouchHandler {
+  constructor(element, onSwipeLeft, onSwipeRight) {
+    this.element = element;
+    this.onSwipeLeft = onSwipeLeft;
+    this.onSwipeRight = onSwipeRight;
+    this.startX = 0;
+    this.startY = 0;
+    this.minSwipeDistance = 50;
+    
+    element.addEventListener('touchstart', this.handleStart.bind(this), { passive: true });
+    element.addEventListener('touchend', this.handleEnd.bind(this), { passive: true });
+  }
+  
+  handleStart(e) {
+    this.startX = e.touches[0].clientX;
+    this.startY = e.touches[0].clientY;
+  }
+  
+  handleEnd(e) {
+    const endX = e.changedTouches[0].clientX;
+    const endY = e.changedTouches[0].clientY;
+    const diffX = this.startX - endX;
+    const diffY = this.startY - endY;
+    
+    // Detectar swipe horizontal (más horizontal que vertical)
+    if (Math.abs(diffX) > Math.abs(diffY) && Math.abs(diffX) > this.minSwipeDistance) {
+      if (diffX > 0) {
+        // Swipe left (next image)
+        this.onSwipeLeft();
+      } else {
+        // Swipe right (previous image)
+        this.onSwipeRight();
+      }
+    }
+  }
+}
+
 // Elementos DOM
 const $ = id => document.getElementById(id);
+
+// Helper function to get product images with error handling
+function getProductImages(product) {
+  try {
+    if (Array.isArray(product.images) && product.images.length > 0) {
+      return product.images;
+    }
+    
+    if (typeof product.images === 'string') {
+      const parsed = JSON.parse(product.images);
+      if (Array.isArray(parsed) && parsed.length > 0) {
+        return parsed;
+      }
+    }
+    
+    // Fallback to single image field
+    if (product.image) {
+      return [product.image];
+    }
+    
+    // Return placeholder
+    return ['/placeholder.jpg'];
+  } catch (e) {
+    console.error('Error parsing product images:', e);
+    return product.image ? [product.image] : ['/placeholder.jpg'];
+  }
+}
 
 // Inicializar
 window.addEventListener('DOMContentLoaded', init);
@@ -75,7 +223,7 @@ function setupEvents() {
   $('addProductBtn').onclick = () => openProductModal();
   $('saveProduct').onclick = saveProduct;
   $('cancelProduct').onclick = () => $('productModal').classList.add('hidden');
-  $('productImage').onchange = previewImage;
+  $('productImages').onchange = previewImages;
   
   // Payment
   $('payCard').onclick = showCardForm;
@@ -176,9 +324,13 @@ function renderProducts() {
     const stock = p.stock || 0;
     const outOfStock = stock === 0;
     
+    // Crear galería para este producto
+    const images = getProductImages(p);
+    galleries[p.id] = new ImageGallery(p.id, images);
+    
     return `
     <div class="bg-white rounded-lg shadow p-4">
-      <img src="${p.image}" onclick="zoomImage('${p.image}')" class="w-full h-48 object-cover rounded mb-3 cursor-pointer hover:opacity-90 transition">
+      ${galleries[p.id].render()}
       <h3 class="font-bold mb-2">${p.name}</h3>
       <p class="text-sm text-gray-600 mb-2">${p.description}</p>
       
@@ -429,14 +581,20 @@ async function loadAdminProducts() {
   $('productsList').innerHTML = products.map(p => {
     const sizes = p.sizes ? p.sizes.split(',').map(s => s.trim()).filter(s => s) : [];
     const stock = p.stock || 0;
+    const images = getProductImages(p);
+    const imageCount = images.length;
     return `
     <div class="flex gap-3 p-3 bg-gray-50 rounded mb-2">
-      <img src="${p.image}" onclick="zoomImage('${p.image}')" class="w-16 h-16 object-cover rounded cursor-pointer">
+      <div class="relative">
+        <img src="${images[0] || p.image}" onclick="zoomImage('${images[0] || p.image}')" class="w-16 h-16 object-cover rounded cursor-pointer">
+        ${imageCount > 1 ? `<span class="absolute -top-1 -right-1 bg-indigo-600 text-white text-xs rounded-full w-5 h-5 flex items-center justify-center">${imageCount}</span>` : ''}
+      </div>
       <div class="flex-1">
         <p class="font-bold">${p.name}</p>
         <p class="text-sm text-gray-600">$${p.price}</p>
         ${sizes.length > 0 ? `<p class="text-xs text-gray-500">Talles: ${sizes.join(', ')}</p>` : ''}
         <p class="text-xs ${stock === 0 ? 'text-red-600' : 'text-green-600'}">Stock: ${stock}</p>
+        ${imageCount > 1 ? `<p class="text-xs text-blue-600"><i class="fas fa-images mr-1"></i>${imageCount} imágenes</p>` : ''}
       </div>
       <div class="flex gap-2">
         <button onclick="editProduct(${p.id})" class="bg-blue-600 text-white px-3 py-1 rounded">
@@ -463,7 +621,9 @@ function openProductModal(productId = null) {
     $('productStock').value = p.stock || 0;
     $('productSizes').value = p.sizes || '';
     
-    $('imagePreview').innerHTML = `<img src="${p.image}" class="w-full h-32 object-cover rounded">`;
+    // Cargar imágenes existentes
+    currentImages = getProductImages(p);
+    updateImagePreview();
   } else {
     $('productModalTitle').textContent = 'Agregar Producto';
     $('productId').value = '';
@@ -472,6 +632,7 @@ function openProductModal(productId = null) {
     $('productPrice').value = '';
     $('productStock').value = '0';
     $('productSizes').value = '';
+    currentImages = [];
     $('imagePreview').innerHTML = '';
   }
   $('productModal').classList.remove('hidden');
@@ -487,17 +648,20 @@ async function saveProduct() {
   const description = $('productDesc').value;
   const price = parseFloat($('productPrice').value);
   const stock = parseInt($('productStock').value) || 0;
-  const imageFile = $('productImage').files[0];
   
   // Obtener talles ingresados (limpiar espacios)
   const sizesInput = $('productSizes').value.trim();
   const sizes = sizesInput ? sizesInput.split(',').map(s => s.trim()).filter(s => s) : [];
   
-  let image = null;
-  if (imageFile) {
-    image = await fileToBase64(imageFile);
-  } else if (id) {
-    image = products.find(p => p.id == id).image;
+  // Usar currentImages que ya contiene las imágenes (existentes + nuevas)
+  if (currentImages.length === 0) {
+    alert('Debes agregar al menos una imagen');
+    return;
+  }
+  
+  if (currentImages.length > 5) {
+    alert('Máximo 5 imágenes permitidas');
+    return;
   }
   
   const url = id ? API + '/products/' + id : API + '/products';
@@ -507,10 +671,19 @@ async function saveProduct() {
     await fetch(url, {
       method,
       headers: {'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token},
-      body: JSON.stringify({name, description, price, image, sizes, stock})
+      body: JSON.stringify({
+        name, 
+        description, 
+        price, 
+        images: currentImages,
+        image: currentImages[0], // Mantener compatibilidad
+        sizes, 
+        stock
+      })
     });
     
     $('productModal').classList.add('hidden');
+    currentImages = [];
     loadAdminProducts();
   } catch (err) {
     alert('Error al guardar');
@@ -531,15 +704,99 @@ async function deleteProduct(id) {
   }
 }
 
-function previewImage() {
-  const file = $('productImage').files[0];
-  if (file) {
-    const reader = new FileReader();
-    reader.onload = e => {
-      $('imagePreview').innerHTML = `<img src="${e.target.result}" class="w-full h-32 object-cover rounded">`;
-    };
-    reader.readAsDataURL(file);
+// Variable global para almacenar imágenes actuales
+let currentImages = [];
+
+async function handleMultipleImages(files) {
+  const images = [];
+  for (const file of files) {
+    if (file.size > 2 * 1024 * 1024) {
+      alert(`La imagen ${file.name} excede 2MB`);
+      continue;
+    }
+    // TODO: Consider adding image compression here before converting to base64
+    // This would reduce storage size and improve load times
+    const base64 = await fileToBase64(file);
+    images.push(base64);
   }
+  return images;
+}
+
+async function previewImages() {
+  const files = $('productImages').files;
+  
+  if (files.length > 5) {
+    alert('Máximo 5 imágenes permitidas');
+    $('productImages').value = '';
+    return;
+  }
+  
+  currentImages = await handleMultipleImages(files);
+  updateImagePreview();
+}
+
+function updateImagePreview() {
+  const preview = $('imagePreview');
+  preview.innerHTML = currentImages.map((img, index) => `
+    <div class="relative group">
+      <img src="${img}" class="w-full h-24 object-cover rounded">
+      
+      <!-- Botón eliminar -->
+      <button type="button" onclick="removeImage(${index})" 
+              class="absolute top-1 right-1 bg-red-600 text-white rounded-full w-6 h-6 flex items-center justify-center hover:bg-red-700">
+        <i class="fas fa-times text-xs"></i>
+      </button>
+      
+      <!-- Botones de reordenamiento -->
+      <div class="absolute bottom-1 left-1 flex gap-1">
+        ${index > 0 ? `
+          <button type="button" onclick="moveImageLeft(${index})" 
+                  class="bg-blue-600 text-white rounded w-6 h-6 flex items-center justify-center hover:bg-blue-700">
+            <i class="fas fa-arrow-left text-xs"></i>
+          </button>
+        ` : ''}
+        ${index < currentImages.length - 1 ? `
+          <button type="button" onclick="moveImageRight(${index})" 
+                  class="bg-blue-600 text-white rounded w-6 h-6 flex items-center justify-center hover:bg-blue-700">
+            <i class="fas fa-arrow-right text-xs"></i>
+          </button>
+        ` : ''}
+      </div>
+      
+      <!-- Indicador de posición -->
+      <div class="absolute top-1 left-1 bg-black bg-opacity-60 text-white text-xs px-2 py-1 rounded">
+        ${index + 1}
+      </div>
+    </div>
+  `).join('');
+}
+
+function moveImageLeft(index) {
+  if (index > 0) {
+    reorderImages(index, index - 1);
+  }
+}
+
+function moveImageRight(index) {
+  if (index < currentImages.length - 1) {
+    reorderImages(index, index + 1);
+  }
+}
+
+function reorderImages(fromIndex, toIndex) {
+  const [removed] = currentImages.splice(fromIndex, 1);
+  currentImages.splice(toIndex, 0, removed);
+  updateImagePreview();
+}
+
+function removeImage(index) {
+  currentImages.splice(index, 1);
+  updateImagePreview();
+}
+
+function previewImage() {
+  // Mantener para compatibilidad, pero usar previewImages
+  previewImages();
 }
 
 function fileToBase64(file) {
@@ -609,12 +866,138 @@ async function loadLogs() {
 }
 
 
-// Función para ampliar imagen
+// Gallery control functions
+function galleryNext(productId) {
+  if (galleries[productId]) {
+    galleries[productId].next();
+  }
+}
+
+function galleryPrev(productId) {
+  if (galleries[productId]) {
+    galleries[productId].prev();
+  }
+}
+
+function galleryGoTo(productId, index) {
+  if (galleries[productId]) {
+    galleries[productId].goTo(index);
+  }
+}
+
+// Función para ampliar imagen con galería
+function openImageZoom(productId, startIndex = 0) {
+  const product = products.find(p => p.id === productId);
+  if (!product) return;
+  
+  const images = getProductImages(product);
+  currentZoomImages = images;
+  currentZoomIndex = startIndex;
+  
+  $('zoomedImage').src = images[startIndex];
+  $('imageZoomModal').classList.remove('hidden');
+  updateZoomControls();
+}
+
 function zoomImage(imageSrc) {
+  // Mantener compatibilidad
+  currentZoomImages = [imageSrc];
+  currentZoomIndex = 0;
   $('zoomedImage').src = imageSrc;
   $('imageZoomModal').classList.remove('hidden');
+  updateZoomControls();
 }
 
 function closeImageZoom() {
   $('imageZoomModal').classList.add('hidden');
 }
+
+// Variables para zoom
+let currentZoomImages = [];
+let currentZoomIndex = 0;
+
+function updateZoomControls() {
+  const hasMultiple = currentZoomImages.length > 1;
+  
+  // Show/hide navigation buttons
+  const prevBtn = $('zoomPrevBtn');
+  const nextBtn = $('zoomNextBtn');
+  
+  if (prevBtn && nextBtn) {
+    prevBtn.style.display = hasMultiple ? 'flex' : 'none';
+    nextBtn.style.display = hasMultiple ? 'flex' : 'none';
+  }
+  
+  // Update counter
+  const counter = $('zoomCounter');
+  if (counter) {
+    counter.textContent = hasMultiple ? `${currentZoomIndex + 1} / ${currentZoomImages.length}` : '';
+  }
+  
+  // Update dots
+  const dots = $('zoomDots');
+  if (dots && hasMultiple) {
+    dots.innerHTML = currentZoomImages.map((_, i) => `
+      <button onclick="zoomGoTo(${i}); event.stopPropagation();" 
+              class="w-3 h-3 rounded-full ${i === currentZoomIndex ? 'bg-white' : 'bg-white bg-opacity-40'} hover:bg-opacity-70 transition">
+      </button>
+    `).join('');
+  } else if (dots) {
+    dots.innerHTML = '';
+  }
+}
+
+function zoomNextImage() {
+  if (currentZoomImages.length > 1) {
+    currentZoomIndex = (currentZoomIndex + 1) % currentZoomImages.length;
+    $('zoomedImage').src = currentZoomImages[currentZoomIndex];
+    updateZoomControls();
+  }
+}
+
+function zoomPrevImage() {
+  if (currentZoomImages.length > 1) {
+    currentZoomIndex = (currentZoomIndex - 1 + currentZoomImages.length) % currentZoomImages.length;
+    $('zoomedImage').src = currentZoomImages[currentZoomIndex];
+    updateZoomControls();
+  }
+}
+
+function zoomGoTo(index) {
+  if (index >= 0 && index < currentZoomImages.length) {
+    currentZoomIndex = index;
+    $('zoomedImage').src = currentZoomImages[currentZoomIndex];
+    updateZoomControls();
+  }
+}
+
+// Keyboard navigation for zoom
+document.addEventListener('keydown', (e) => {
+  const modal = $('imageZoomModal');
+  if (modal && !modal.classList.contains('hidden')) {
+    if (e.key === 'ArrowLeft') {
+      zoomPrevImage();
+    } else if (e.key === 'ArrowRight') {
+      zoomNextImage();
+    } else if (e.key === 'Escape') {
+      closeImageZoom();
+    }
+  }
+});
+
+// Detect touch capability
+const isTouchDevice = () => {
+  return 'ontouchstart' in window || navigator.maxTouchPoints > 0;
+};
+
+// Initialize touch handler for zoom modal
+window.addEventListener('DOMContentLoaded', () => {
+  const zoomModal = $('imageZoomModal');
+  if (zoomModal && isTouchDevice()) {
+    new TouchHandler(
+      zoomModal,
+      () => zoomNextImage(), // Swipe left = next
+      () => zoomPrevImage()  // Swipe right = previous
+    );
+  }
+});

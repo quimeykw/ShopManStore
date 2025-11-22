@@ -11,53 +11,55 @@
   
   <!-- Header -->
   <header class="bg-white shadow">
-    <div class="container mx-auto px-4 py-4 flex justify-between items-center">
-      <h1 class="text-2xl font-bold text-indigo-600">ShopManStore</h1>
-      <div class="flex gap-3">
-        <span id="userInfo" class="hidden text-gray-600"></span>
-        <button id="adminBtn" class="hidden bg-gray-800 text-white px-4 py-2 rounded">
-          <i class="fas fa-cog mr-2"></i>Admin
-        </button>
-        <button id="cartBtn" class="bg-indigo-600 text-white px-4 py-2 rounded">
-          <i class="fas fa-cart-shopping mr-2"></i>Carrito (<span id="cartCount">0</span>)
-        </button>
-        <button id="logoutBtn" class="hidden bg-red-600 text-white px-4 py-2 rounded">Salir</button>
+    <div class="container mx-auto px-4 py-3 sm:py-4">
+      <div class="flex flex-col sm:flex-row justify-between items-center gap-3">
+        <h1 class="text-xl sm:text-2xl font-bold text-indigo-600">ShopManStore</h1>
+        <div class="flex flex-wrap gap-2 sm:gap-3 justify-center sm:justify-end items-center">
+          <span id="userInfo" class="hidden text-sm sm:text-base text-gray-600"></span>
+          <button id="adminBtn" class="hidden bg-gray-800 text-white px-4 py-2 rounded text-sm sm:text-base min-h-[44px]">
+            <i class="fas fa-cog mr-1 sm:mr-2"></i><span class="hidden sm:inline">Admin</span><span class="sm:hidden">Admin</span>
+          </button>
+          <button id="cartBtn" class="bg-indigo-600 text-white px-4 py-2 rounded text-sm sm:text-base min-h-[44px]">
+            <i class="fas fa-cart-shopping mr-1 sm:mr-2"></i><span class="hidden sm:inline">Carrito</span> (<span id="cartCount">0</span>)
+          </button>
+          <button id="logoutBtn" class="hidden bg-red-600 text-white px-4 py-2 rounded text-sm sm:text-base min-h-[44px]">Salir</button>
+        </div>
       </div>
     </div>
   </header>
 
   <!-- Login Modal -->
   <div id="loginModal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-    <div class="bg-white p-6 rounded-lg w-96">
+    <div class="bg-white p-6 rounded-lg w-full max-w-md mx-4">
       <h2 class="text-xl font-bold mb-4">Iniciar Sesión</h2>
       <input type="text" id="loginUser" placeholder="Usuario" class="w-full p-2 border rounded mb-3">
       <input type="password" id="loginPass" placeholder="Contraseña" class="w-full p-2 border rounded mb-3">
-      <button id="loginSubmit" class="w-full bg-indigo-600 text-white p-2 rounded mb-2">Entrar</button>
-      <button id="showRegister" class="w-full bg-gray-300 p-2 rounded">Registrarse</button>
+      <button id="loginSubmit" class="w-full bg-indigo-600 text-white p-2 rounded mb-2 min-h-[44px]">Entrar</button>
+      <button id="showRegister" class="w-full bg-gray-300 p-2 rounded min-h-[44px]">Registrarse</button>
       <p id="loginError" class="text-red-600 text-sm mt-2 hidden"></p>
     </div>
   </div>
 
   <!-- Register Modal -->
   <div id="registerModal" class="hidden fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-    <div class="bg-white p-6 rounded-lg w-96">
+    <div class="bg-white p-6 rounded-lg w-full max-w-md mx-4">
       <h2 class="text-xl font-bold mb-4">Registrarse</h2>
       <input type="text" id="regUser" placeholder="Usuario" class="w-full p-2 border rounded mb-3">
       <input type="email" id="regEmail" placeholder="Email" class="w-full p-2 border rounded mb-3">
       <input type="password" id="regPass" placeholder="Contraseña" class="w-full p-2 border rounded mb-3">
-      <button id="registerSubmit" class="w-full bg-indigo-600 text-white p-2 rounded mb-2">Registrar</button>
-      <button id="showLogin" class="w-full bg-gray-300 p-2 rounded">Ya tengo cuenta</button>
+      <button id="registerSubmit" class="w-full bg-indigo-600 text-white p-2 rounded mb-2 min-h-[44px]">Registrar</button>
+      <button id="showLogin" class="w-full bg-gray-300 p-2 rounded min-h-[44px]">Ya tengo cuenta</button>
       <p id="regError" class="text-red-600 text-sm mt-2 hidden"></p>
     </div>
   </div>
 
   <!-- Products -->
   <main class="container mx-auto px-4 py-8">
-    <div id="productsGrid" class="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-4 gap-4"></div>
+    <div id="productsGrid" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4"></div>
   </main>
 
   <!-- Cart -->
-  <div id="cartSidebar" class="fixed right-0 top-0 h-full w-80 bg-white shadow-lg transform translate-x-full transition-transform z-40">
+  <div id="cartSidebar" class="fixed right-0 top-0 h-full w-full sm:w-96 bg-white shadow-lg transform translate-x-full transition-transform z-40">
     <div class="p-4 border-b flex justify-between">
       <h2 class="text-xl font-bold">Carrito</h2>
       <button id="closeCart"><i class="fas fa-times"></i></button>
@@ -68,7 +70,7 @@
         <span class="font-bold">Total:</span>
         <span id="cartTotal" class="font-bold">$0</span>
       </div>
-      <button id="checkoutBtn" class="w-full bg-indigo-600 text-white p-2 rounded">Pagar</button>
+      <button id="checkoutBtn" class="w-full bg-indigo-600 text-white p-2 rounded min-h-[44px]">Pagar</button>
     </div>
   </div>
 
@@ -105,7 +107,7 @@
 
   <!-- Product Modal -->
   <div id="productModal" class="hidden fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 overflow-y-auto">
-    <div class="bg-white p-6 rounded-lg w-96 my-8">
+    <div class="bg-white p-6 rounded-lg w-full max-w-md mx-4 my-8">
       <h2 id="productModalTitle" class="text-xl font-bold mb-4">Producto</h2>
       <input type="hidden" id="productId">
       <input type="text" id="productName" placeholder="Nombre" class="w-full p-2 border rounded mb-3">
@@ -120,26 +122,50 @@
       <!-- Stock disponible -->
       <input type="number" id="productStock" placeholder="Cantidad disponible" class="w-full p-2 border rounded mb-3" min="0">
       
-      <input type="file" id="productImage" accept="image/*" class="w-full p-2 border rounded mb-3">
-      <div id="imagePreview" class="mb-3"></div>
-      <button id="saveProduct" class="w-full bg-indigo-600 text-white p-2 rounded mb-2">Guardar</button>
-      <button id="cancelProduct" class="w-full bg-gray-300 p-2 rounded">Cancelar</button>
+      <label class="block text-sm font-bold mb-2">Imágenes del producto (máx. 5):</label>
+      <input type="file" id="productImages" accept="image/*" multiple class="w-full p-2 border rounded mb-3">
+      <div id="imagePreview" class="grid grid-cols-3 gap-2 mb-3"></div>
+      <button id="saveProduct" class="w-full bg-indigo-600 text-white p-2 rounded mb-2 min-h-[44px]">Guardar</button>
+      <button id="cancelProduct" class="w-full bg-gray-300 p-2 rounded min-h-[44px]">Cancelar</button>
     </div>
   </div>
 
   <!-- Image Zoom Modal -->
-  <div id="imageZoomModal" class="hidden fixed inset-0 bg-black bg-opacity-90 flex items-center justify-center z-50" onclick="closeImageZoom()">
-    <div class="relative max-w-6xl max-h-screen p-4">
-      <button onclick="closeImageZoom()" class="absolute top-2 right-2 text-white text-3xl hover:text-gray-300">
+  <div id="imageZoomModal" class="hidden fixed inset-0 bg-black bg-opacity-90 flex items-center justify-center z-50">
+    <div class="relative w-full h-full flex items-center justify-center p-4">
+      <!-- Close button -->
+      <button onclick="closeImageZoom()" class="absolute top-4 right-4 text-white text-3xl hover:text-gray-300 z-10">
         <i class="fas fa-times"></i>
       </button>
-      <img id="zoomedImage" src="" class="max-w-full max-h-screen object-contain">
+      
+      <!-- Previous button -->
+      <button id="zoomPrevBtn" onclick="zoomPrevImage(); event.stopPropagation();" 
+              class="absolute left-4 top-1/2 transform -translate-y-1/2 bg-white bg-opacity-20 hover:bg-opacity-30 text-white rounded-full w-12 h-12 flex items-center justify-center z-10">
+        <i class="fas fa-chevron-left text-2xl"></i>
+      </button>
+      
+      <!-- Image -->
+      <div class="flex flex-col items-center justify-center max-w-6xl max-h-screen" onclick="event.stopPropagation()">
+        <img id="zoomedImage" src="" class="max-w-full max-h-[85vh] object-contain">
+        
+        <!-- Image counter and indicators -->
+        <div id="zoomIndicators" class="mt-4 flex flex-col items-center gap-2">
+          <div id="zoomCounter" class="text-white text-sm"></div>
+          <div id="zoomDots" class="flex gap-2"></div>
+        </div>
+      </div>
+      
+      <!-- Next button -->
+      <button id="zoomNextBtn" onclick="zoomNextImage(); event.stopPropagation();" 
+              class="absolute right-4 top-1/2 transform -translate-y-1/2 bg-white bg-opacity-20 hover:bg-opacity-30 text-white rounded-full w-12 h-12 flex items-center justify-center z-10">
+        <i class="fas fa-chevron-right text-2xl"></i>
+      </button>
     </div>
   </div>
 
   <!-- Payment Modal -->
   <div id="paymentModal" class="hidden fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-    <div class="bg-white p-6 rounded-lg w-96">
+    <div class="bg-white p-6 rounded-lg w-full max-w-md mx-4">
       <h2 class="text-xl font-bold mb-4">Pagar</h2>
       <p class="mb-4">Total: <span id="paymentTotal" class="font-bold text-2xl"></span></p>
       <button id="payCard" class="w-full bg-blue-600 text-white p-3 rounded mb-2">
@@ -157,7 +183,7 @@
 
   <!-- Card Payment Form -->
   <div id="cardModal" class="hidden fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-    <div class="bg-white p-6 rounded-lg w-96">
+    <div class="bg-white p-6 rounded-lg w-full max-w-md mx-4">
       <h2 class="text-xl font-bold mb-4">Pago con Tarjeta</h2>
       <p class="mb-4">Total: <span id="cardTotal" class="font-bold text-xl text-indigo-600"></span></p>
       
