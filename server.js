@@ -101,16 +101,16 @@ app.post('/api/products', auth, isAdmin, (req, res) => {
     imageArray = [imageArray];
   }
   
-  // Validar máximo 5 imágenes
-  if (imageArray.length > 5) {
-    return res.status(400).json({ error: 'Máximo 5 imágenes permitidas' });
+  // Validar máximo 10 imágenes
+  if (imageArray.length > 10) {
+    return res.status(400).json({ error: 'Máximo 10 imágenes permitidas' });
   }
   
-  // Validar tamaño de cada imagen (aproximadamente 2MB en base64)
-  const MAX_SIZE = 2 * 1024 * 1024 * 1.37; // Base64 es ~37% más grande
+  // Validar tamaño de cada imagen (aproximadamente 1.5MB en base64)
+  const MAX_SIZE = 1.5 * 1024 * 1024 * 1.37; // Base64 es ~37% más grande
   for (const img of imageArray) {
     if (img && img.length > MAX_SIZE) {
-      return res.status(400).json({ error: 'Cada imagen debe ser menor a 2MB' });
+      return res.status(400).json({ error: 'Cada imagen debe ser menor a 1.5MB después de compresión' });
     }
   }
   
@@ -120,7 +120,10 @@ app.post('/api/products', auth, isAdmin, (req, res) => {
   db.run('INSERT INTO products (name, description, price, image, images, sizes, stock) VALUES (?, ?, ?, ?, ?, ?, ?)',
     [name, description, price, imageArray[0] || null, imagesJson, sizesStr, stock || 0],
     function(err) {
-      if (err) return res.status(500).json({ error: 'Error al crear' });
+      if (err) {
+        console.error('Error creating product:', err);
+        return res.status(500).json({ error: 'Error al crear: ' + err.message });
+      }
       res.json({ id: this.lastID });
     }
   );
@@ -135,16 +138,16 @@ app.put('/api/products/:id', auth, isAdmin, (req, res) => {
     imageArray = [imageArray];
   }
   
-  // Validar máximo 5 imágenes
-  if (imageArray.length > 5) {
-    return res.status(400).json({ error: 'Máximo 5 imágenes permitidas' });
+  // Validar máximo 10 imágenes
+  if (imageArray.length > 10) {
+    return res.status(400).json({ error: 'Máximo 10 imágenes permitidas' });
   }
   
-  // Validar tamaño de cada imagen
-  const MAX_SIZE = 2 * 1024 * 1024 * 1.37;
+  // Validar tamaño de cada imagen (aproximadamente 1.5MB en base64)
+  const MAX_SIZE = 1.5 * 1024 * 1024 * 1.37; // Base64 es ~37% más grande
   for (const img of imageArray) {
     if (img && img.length > MAX_SIZE) {
-      return res.status(400).json({ error: 'Cada imagen debe ser menor a 2MB' });
+      return res.status(400).json({ error: 'Cada imagen debe ser menor a 1.5MB después de compresión' });
     }
   }
   
@@ -154,7 +157,10 @@ app.put('/api/products/:id', auth, isAdmin, (req, res) => {
   db.run('UPDATE products SET name=?, description=?, price=?, image=?, images=?, sizes=?, stock=? WHERE id=?',
     [name, description, price, imageArray[0] || null, imagesJson, sizesStr, stock || 0, req.params.id],
     (err) => {
-      if (err) return res.status(500).json({ error: 'Error al actualizar' });
+      if (err) {
+        console.error('Error updating product:', err);
+        return res.status(500).json({ error: 'Error al actualizar: ' + err.message });
+      }
       res.json({ message: 'Actualizado' });
     }
   );
