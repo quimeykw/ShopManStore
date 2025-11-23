@@ -6,6 +6,28 @@
   <title>ShopManStore</title>
   <script src="https://cdn.tailwindcss.com"></script>
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <style>
+    /* Drag and drop styles */
+    [draggable="true"] {
+      transition: opacity 0.2s ease;
+    }
+    
+    .drag-over {
+      border: 2px dashed #4F46E5 !important;
+      background-color: rgba(79, 70, 229, 0.1) !important;
+      transform: scale(1.05);
+      transition: all 0.2s ease;
+    }
+    
+    /* Smooth transitions for image grid */
+    #imagePreview > div {
+      transition: transform 0.2s ease;
+    }
+    
+    #imagePreview > div:hover {
+      transform: translateY(-2px);
+    }
+  </style>
 </head>
 <body class="bg-gray-50">
   
@@ -122,8 +144,12 @@
       <!-- Stock disponible -->
       <input type="number" id="productStock" placeholder="Cantidad disponible" class="w-full p-2 border rounded mb-3" min="0">
       
-      <label class="block text-sm font-bold mb-2">Imágenes del producto (máx. 5):</label>
+      <label class="block text-sm font-bold mb-2">Imágenes del producto (máx. 10):</label>
       <input type="file" id="productImages" accept="image/*" multiple class="w-full p-2 border rounded mb-3">
+      
+      <!-- Progress Indicator Container -->
+      <div id="uploadProgress" class="hidden"></div>
+      
       <div id="imagePreview" class="grid grid-cols-3 gap-2 mb-3"></div>
       <button id="saveProduct" class="w-full bg-indigo-600 text-white p-2 rounded mb-2 min-h-[44px]">Guardar</button>
       <button id="cancelProduct" class="w-full bg-gray-300 p-2 rounded min-h-[44px]">Cancelar</button>

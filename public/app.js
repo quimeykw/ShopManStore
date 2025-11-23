@@ -126,8 +126,652 @@ class TouchHandler {
   }
 }
 
+// ImageCompressor - Compresses images in the browser
+class ImageCompressor {
+  constructor(options = {}) {
+    this.maxWidth = options.maxWidth || 1200;
+    this.maxHeight = options.maxHeight || 1200;
+    this.quality = options.quality || 0.8;
+    this.maxSizeKB = options.maxSizeKB || 1500;
+  }
+
+  /**
+   * Compress a single image file
+   * @param {File} file - Image file to compress
+   * @returns {Promise<Object>} - Object with base64, sizeKB, width, height, compressed
+   */
+  async compress(file) {
+    try {
+      // Validate file type
+      if (!file.type.startsWith('image/')) {
+        throw new Error('El archivo no es una imagen válida');
+      }
+
+      // Load image
+      const img = await this._loadImage(file);
+      
+      // Create canvas
+      const canvas = document.createElement('canvas');
+      const ctx = canvas.getContext('2d');
+      
+      // Resize if needed
+      const { width, height } = this._calculateDimensions(img.width, img.height);
+      canvas.width = width;
+      canvas.height = height;
+      
+      // Draw image on canvas
+      ctx.drawImage(img, 0, 0, width, height);
+      
+      // Compress and optimize quality
+      const base64 = await this._optimizeQuality(canvas, this.maxSizeKB);
+      const sizeKB = Math.round((base64.length * 0.75) / 1024); // Approximate size
+      
+      return {
+        base64,
+        sizeKB,
+        width,
+        height,
+        compressed: true,
+        filename: file.name
+      };
+    } catch (error) {
+      console.error('Error compressing image:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Compress multiple images with progress callback
+   * @param {FileList|Array} files - Array of image files
+   * @param {Function} onProgress - Callback function (current, total, message)
+   * @returns {Promise<Array>} - Array of compressed image objects
+   */
+  async compressMultiple(files, onProgress) {
+    const results = [];
+    const errors = [];
+    const total = files.length;
+
+    for (let i = 0; i < total; i++) {
+      const file = files[i];
+      
+      try {
+        if (onProgress) {
+          onProgress(i, total, `Procesando ${file.name}...`);
+        }
+        
+        const compressed = await this.compress(file);
+        results.push(compressed);
+        
+        if (onProgress) {
+          onProgress(i + 1, total, `${file.name} procesado`);
+        }
+      } catch (error) {
+        errors.push({ file: file.name, error: error.message });
+        console.error(`Error processing ${file.name}:`, error);
+      }
+    }
+
+    return { results, errors };
+  }
+
+  /**
+   * Load image from file
+   * @private
+   */
+  _loadImage(file) {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        const img = new Image();
+        img.onload = () => resolve(img);
+        img.onerror = () => reject(new Error('Error al cargar la imagen'));
+        img.src = e.target.result;
+      };
+      reader.onerror = () => reject(new Error('Error al leer el archivo'));
+      reader.readAsDataURL(file);
+    });
+  }
+
+  /**
+   * Calculate new dimensions maintaining aspect ratio
+   * @private
+   */
+  _calculateDimensions(width, height) {
+    let newWidth = width;
+    let newHeight = height;
+
+    // Scale down if larger than max dimensions
+    if (width > this.maxWidth || height > this.maxHeight) {
+      const aspectRatio = width / height;
+      
+      if (width > height) {
+        newWidth = this.maxWidth;
+        newHeight = Math.round(this.maxWidth / aspectRatio);
+      } else {
+        newHeight = this.maxHeight;
+        newWidth = Math.round(this.maxHeight * aspectRatio);
+      }
+    }
+
+    return { width: newWidth, height: newHeight };
+  }
+
+  /**
+   * Optimize quality to meet size target
+   * @private
+   */
+  async _optimizeQuality(canvas, targetSizeKB) {
+    let quality = this.quality;
+    let base64 = canvas.toDataURL('image/jpeg', quality);
+    let sizeKB = Math.round((base64.length * 0.75) / 1024);
+
+    // If still too large, reduce quality iteratively
+    while (sizeKB > targetSizeKB && quality > 0.5) {
+      quality -= 0.1;
+      base64 = canvas.toDataURL('image/jpeg', quality);
+      sizeKB = Math.round((base64.length * 0.75) / 1024);
+    }
+
+    // Ensure quality stays within acceptable range
+    if (quality < 0.7) {
+      console.warn('Image quality reduced below 0.7 to meet size constraint');
+    }
+
+    return base64;
+  }
+}
+
+// ProgressIndicator - Shows progress for image processing
+class ProgressIndicator {
+  constructor(containerId) {
+    this.containerId = containerId;
+    this.container = null;
+  }
+
+  /**
+   * Show progress bar
+   * @param {number} total - Total number of items to process
+   */
+  show(total) {
+    this.container = document.getElementById(this.containerId);
+    if (!this.container) {
+      console.error(`Container ${this.containerId} not found`);
+      return;
+    }
+
+    this.container.innerHTML = `
+      <div class="bg-blue-50 border border-blue-200 rounded p-3 mb-3">
+        <div class="flex justify-between items-center mb-2">
+          <span class="text-sm font-medium text-blue-900" id="${this.containerId}-message">
+            Procesando imágenes...
+          </span>
+          <span class="text-sm text-blue-700" id="${this.containerId}-counter">
+            0 / ${total}
+          </span>
+        </div>
+        <div class="w-full bg-blue-200 rounded-full h-2">
+          <div id="${this.containerId}-bar" class="bg-blue-600 h-2 rounded-full transition-all duration-300" style="width: 0%"></div>
+        </div>
+        <div id="${this.containerId}-errors" class="mt-2 text-xs text-red-600"></div>
+      </div>
+    `;
+    this.container.classList.remove('hidden');
+  }
+
+  /**
+   * Update progress
+   * @param {number} current - Current progress
+   * @param {number} total - Total items
+   * @param {string} message - Optional message to display
+   */
+  update(current, total, message) {
+    const percentage = Math.round((current / total) * 100);
+    
+    const bar = document.getElementById(`${this.containerId}-bar`);
+    const counter = document.getElementById(`${this.containerId}-counter`);
+    const messageEl = document.getElementById(`${this.containerId}-message`);
+    
+    if (bar) bar.style.width = `${percentage}%`;
+    if (counter) counter.textContent = `${current} / ${total}`;
+    if (messageEl && message) messageEl.textContent = message;
+  }
+
+  /**
+   * Hide progress bar
+   */
+  hide() {
+    if (this.container) {
+      this.container.innerHTML = '';
+      this.container.classList.add('hidden');
+    }
+  }
+
+  /**
+   * Show error message
+   * @param {string} message - Error message to display
+   */
+  showError(message) {
+    const errorsEl = document.getElementById(`${this.containerId}-errors`);
+    if (errorsEl) {
+      errorsEl.innerHTML += `<div>⚠️ ${message}</div>`;
+    }
+  }
+
+  /**
+   * Show summary of processing
+   * @param {number} successful - Number of successful items
+   * @param {number} failed - Number of failed items
+   */
+  showSummary(successful, failed) {
+    const messageEl = document.getElementById(`${this.containerId}-message`);
+    if (messageEl) {
+      if (failed === 0) {
+        messageEl.textContent = `✓ ${successful} imagen${successful !== 1 ? 'es' : ''} procesada${successful !== 1 ? 's' : ''} exitosamente`;
+        messageEl.className = 'text-sm font-medium text-green-700';
+      } else {
+        messageEl.textContent = `${successful} exitosa${successful !== 1 ? 's' : ''}, ${failed} fallida${failed !== 1 ? 's' : ''}`;
+        messageEl.className = 'text-sm font-medium text-orange-700';
+      }
+    }
+  }
+}
+
+// ImageUploadManager - Manages multiple image uploads with preview
+class ImageUploadManager {
+  constructor(containerId, options = {}) {
+    this.containerId = containerId;
+    this.container = null;
+    this.maxImages = options.maxImages || 10;
+    this.images = []; // Array of { base64, sizeKB, id, filename }
+    this.compressor = new ImageCompressor(options.compressor || {});
+    this.progressIndicator = options.progressIndicator || null;
+  }
+
+  /**
+   * Add new images with compression and validation
+   * @param {FileList|Array} files - Files to add
+   * @returns {Promise<Object>} - Results with successful and failed counts
+   */
+  async addImages(files) {
+    // Validate total count
+    const totalCount = this.images.length + files.length;
+    if (totalCount > this.maxImages) {
+      const remaining = this.maxImages - this.images.length;
+      throw new Error(`Máximo ${this.maxImages} imágenes permitidas. Puedes agregar ${remaining} más.`);
+    }
+
+    // Show progress if indicator provided
+    if (this.progressIndicator) {
+      this.progressIndicator.show(files.length);
+    }
+
+    // Compress images
+    const { results, errors } = await this.compressor.compressMultiple(files, (current, total, message) => {
+      if (this.progressIndicator) {
+        this.progressIndicator.update(current, total, message);
+      }
+    });
+
+    // Add successful images
+    results.forEach(result => {
+      this.images.push({
+        base64: result.base64,
+        sizeKB: result.sizeKB,
+        id: this._generateId(),
+        filename: result.filename,
+        width: result.width,
+        height: result.height
+      });
+    });
+
+    // Show errors
+    if (this.progressIndicator && errors.length > 0) {
+      errors.forEach(err => {
+        this.progressIndicator.showError(`${err.file}: ${err.error}`);
+      });
+    }
+
+    // Show summary
+    if (this.progressIndicator) {
+      this.progressIndicator.showSummary(results.length, errors.length);
+      setTimeout(() => {
+        this.progressIndicator.hide();
+      }, 2000);
+    }
+
+    this.render();
+
+    return { successful: results.length, failed: errors.length };
+  }
+
+  /**
+   * Remove image at index
+   * @param {number} index - Index of image to remove
+   */
+  removeImage(index) {
+    if (index >= 0 && index < this.images.length) {
+      this.images.splice(index, 1);
+      this.render();
+    }
+  }
+
+  /**
+   * Replace image at specific index
+   * @param {number} index - Index to replace
+   * @param {File} file - New image file
+   */
+  async replaceImage(index, file) {
+    if (index < 0 || index >= this.images.length) {
+      throw new Error('Índice inválido');
+    }
+
+    try {
+      const result = await this.compressor.compress(file);
+      
+      this.images[index] = {
+        base64: result.base64,
+        sizeKB: result.sizeKB,
+        id: this._generateId(),
+        filename: result.filename,
+        width: result.width,
+        height: result.height
+      };
+
+      this.render();
+    } catch (error) {
+      console.error('Error replacing image:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Reorder images
+   * @param {number} fromIndex - Source index
+   * @param {number} toIndex - Destination index
+   */
+  reorderImages(fromIndex, toIndex) {
+    if (fromIndex < 0 || fromIndex >= this.images.length ||
+        toIndex < 0 || toIndex >= this.images.length) {
+      return;
+    }
+
+    const [removed] = this.images.splice(fromIndex, 1);
+    this.images.splice(toIndex, 0, removed);
+    this.render();
+  }
+
+  /**
+   * Get array of base64 strings
+   * @returns {Array<string>} - Array of base64 image strings
+   */
+  getImages() {
+    return this.images.map(img => img.base64);
+  }
+
+  /**
+   * Get total size in KB
+   * @returns {number} - Total size in KB
+   */
+  getTotalSize() {
+    return this.images.reduce((sum, img) => sum + img.sizeKB, 0);
+  }
+
+  /**
+   * Load existing images
+   * @param {Array<string>} base64Images - Array of base64 strings
+   */
+  loadImages(base64Images) {
+    this.images = base64Images.map(base64 => ({
+      base64,
+      sizeKB: Math.round((base64.length * 0.75) / 1024),
+      id: this._generateId(),
+      filename: 'existing.jpg',
+      width: 0,
+      height: 0
+    }));
+    this.render();
+  }
+
+  /**
+   * Clear all images
+   */
+  clear() {
+    this.images = [];
+    this.render();
+  }
+
+  /**
+   * Render preview grid
+   */
+  render() {
+    this.container = document.getElementById(this.containerId);
+    if (!this.container) {
+      console.error(`Container ${this.containerId} not found`);
+      return;
+    }
+
+    const totalSize = this.getTotalSize();
+    const totalSizeFormatted = this._formatSize(totalSize);
+    const showWarning = totalSize > 10240; // 10MB
+
+    this.container.innerHTML = this.images.map((img, index) => `
+      <div class="relative group" data-index="${index}">
+        <img src="${img.base64}" class="w-full h-24 object-cover rounded">
+        
+        <!-- Remove button -->
+        <button type="button" onclick="imageManager.removeImage(${index})" 
+                class="absolute top-1 right-1 bg-red-600 text-white rounded-full w-6 h-6 flex items-center justify-center hover:bg-red-700 transition">
+          <i class="fas fa-times text-xs"></i>
+        </button>
+        
+        <!-- Replace button -->
+        <button type="button" onclick="imageManager.triggerReplace(${index})" 
+                class="absolute top-1 left-1 bg-blue-600 text-white rounded-full w-6 h-6 flex items-center justify-center hover:bg-blue-700 transition">
+          <i class="fas fa-sync text-xs"></i>
+        </button>
+        
+        <!-- Position indicator -->
+        <div class="absolute bottom-1 left-1 bg-black bg-opacity-60 text-white text-xs px-2 py-1 rounded">
+          ${index + 1}
+        </div>
+        
+        <!-- Size indicator -->
+        <div class="absolute bottom-1 right-1 bg-black bg-opacity-60 text-white text-xs px-2 py-1 rounded">
+          ${this._formatSize(img.sizeKB)}
+        </div>
+      </div>
+    `).join('');
+
+    // Add total size display
+    if (this.images.length > 0) {
+      const totalDiv = document.createElement('div');
+      totalDiv.className = `col-span-3 text-sm p-2 rounded ${showWarning ? 'bg-orange-50 text-orange-700' : 'bg-gray-50 text-gray-700'}`;
+      totalDiv.innerHTML = `
+        ${showWarning ? '<i class="fas fa-exclamation-triangle mr-1"></i>' : ''}
+        <strong>Total:</strong> ${totalSizeFormatted} 
+        ${showWarning ? '(Recomendado: < 10 MB)' : ''}
+        <span class="ml-2 text-xs">(${this.images.length}/${this.maxImages} imágenes)</span>
+      `;
+      this.container.appendChild(totalDiv);
+    }
+  }
+
+  /**
+   * Trigger file input for replacing image
+   * @param {number} index - Index to replace
+   */
+  triggerReplace(index) {
+    const input = document.createElement('input');
+    input.type = 'file';
+    input.accept = 'image/*';
+    input.onchange = async (e) => {
+      const file = e.target.files[0];
+      if (file) {
+        try {
+          await this.replaceImage(index, file);
+        } catch (error) {
+          alert(`Error al reemplazar imagen: ${error.message}`);
+        }
+      }
+    };
+    input.click();
+  }
+
+  /**
+   * Format size as KB or MB
+   * @private
+   */
+  _formatSize(sizeKB) {
+    if (sizeKB < 1024) {
+      return `${Math.round(sizeKB)} KB`;
+    } else {
+      return `${(sizeKB / 1024).toFixed(2)} MB`;
+    }
+  }
+
+  /**
+   * Generate unique ID
+   * @private
+   */
+  _generateId() {
+    return `img_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+  }
+}
+
+// DragDropHandler - Handles drag and drop for image reordering
+class DragDropHandler {
+  constructor(manager) {
+    this.manager = manager;
+    this.draggedIndex = null;
+    this.draggedElement = null;
+  }
+
+  /**
+   * Attach drag event listeners to element
+   * @param {HTMLElement} element - Element to make draggable
+   * @param {number} index - Index of the image
+   */
+  attachToElement(element, index) {
+    element.setAttribute('draggable', 'true');
+    element.style.cursor = 'move';
+
+    element.addEventListener('dragstart', (e) => this.handleDragStart(e, index));
+    element.addEventListener('dragend', (e) => this.handleDragEnd(e));
+    element.addEventListener('dragover', (e) => this.handleDragOver(e, index));
+    element.addEventListener('drop', (e) => this.handleDrop(e, index));
+    element.addEventListener('dragenter', (e) => this.handleDragEnter(e));
+    element.addEventListener('dragleave', (e) => this.handleDragLeave(e));
+  }
+
+  /**
+   * Handle drag start
+   * @param {DragEvent} e - Drag event
+   * @param {number} index - Index being dragged
+   */
+  handleDragStart(e, index) {
+    this.draggedIndex = index;
+    this.draggedElement = e.target;
+    e.target.style.opacity = '0.5';
+    e.dataTransfer.effectAllowed = 'move';
+    e.dataTransfer.setData('text/html', e.target.innerHTML);
+  }
+
+  /**
+   * Handle drag end
+   * @param {DragEvent} e - Drag event
+   */
+  handleDragEnd(e) {
+    e.target.style.opacity = '1';
+    
+    // Remove all drop zone highlights
+    const elements = document.querySelectorAll(`#${this.manager.containerId} > div`);
+    elements.forEach(el => {
+      el.classList.remove('drag-over');
+    });
+  }
+
+  /**
+   * Handle drag over
+   * @param {DragEvent} e - Drag event
+   * @param {number} index - Index being dragged over
+   */
+  handleDragOver(e, index) {
+    if (e.preventDefault) {
+      e.preventDefault();
+    }
+    e.dataTransfer.dropEffect = 'move';
+    return false;
+  }
+
+  /**
+   * Handle drag enter
+   * @param {DragEvent} e - Drag event
+   */
+  handleDragEnter(e) {
+    const target = e.target.closest('[data-index]');
+    if (target) {
+      target.classList.add('drag-over');
+    }
+  }
+
+  /**
+   * Handle drag leave
+   * @param {DragEvent} e - Drag event
+   */
+  handleDragLeave(e) {
+    const target = e.target.closest('[data-index]');
+    if (target) {
+      target.classList.remove('drag-over');
+    }
+  }
+
+  /**
+   * Handle drop
+   * @param {DragEvent} e - Drag event
+   * @param {number} index - Index where dropped
+   */
+  handleDrop(e, index) {
+    if (e.stopPropagation) {
+      e.stopPropagation();
+    }
+
+    if (this.draggedIndex !== null && this.draggedIndex !== index) {
+      this.manager.reorderImages(this.draggedIndex, index);
+      
+      // Re-attach drag handlers after reorder
+      setTimeout(() => {
+        this.attachAllHandlers();
+      }, 100);
+    }
+
+    return false;
+  }
+
+  /**
+   * Attach handlers to all draggable elements
+   */
+  attachAllHandlers() {
+    const container = document.getElementById(this.manager.containerId);
+    if (!container) return;
+
+    const elements = container.querySelectorAll('[data-index]');
+    elements.forEach((el, index) => {
+      this.attachToElement(el, index);
+    });
+  }
+}
+
 // Elementos DOM
 const $ = id => document.getElementById(id);
+
+// Helper function to format price with thousands separator
+function formatPrice(price) {
+  const numPrice = typeof price === 'string' ? parseFloat(price) : price;
+  return numPrice.toLocaleString('es-AR', {
+    minimumFractionDigits: 0,
+    maximumFractionDigits: 2
+  });
+}
 
 // Helper function to get product images with error handling
 function getProductImages(product) {
@@ -348,7 +992,7 @@ function renderProducts() {
         <i class="fas fa-box mr-1"></i>${outOfStock ? 'Sin stock' : `Stock: ${stock}`}
       </p>
       <div class="flex justify-between items-center">
-        <span class="text-xl font-bold text-indigo-600">$${p.price}</span>
+        <span class="text-xl font-bold text-indigo-600">$${formatPrice(p.price)}</span>
         <button onclick="addToCart(${p.id})" ${outOfStock ? 'disabled' : ''} 
                 class="bg-indigo-600 text-white px-3 py-1 rounded ${outOfStock ? 'opacity-50 cursor-not-allowed' : 'hover:bg-indigo-700'}">
           <i class="fas fa-cart-plus"></i>
@@ -398,7 +1042,7 @@ function addToCart(productId) {
 function updateCart() {
   const total = cart.reduce((sum, item) => sum + (item.price * item.qty), 0);
   $('cartCount').textContent = cart.reduce((sum, item) => sum + item.qty, 0);
-  $('cartTotal').textContent = '$' + total.toFixed(2);
+  $('cartTotal').textContent = '$' + formatPrice(total);
   
   $('cartItems').innerHTML = cart.map(item => `
     <div class="flex gap-3 mb-3 pb-3 border-b">
@@ -406,14 +1050,14 @@ function updateCart() {
       <div class="flex-1">
         <p class="font-bold">${item.name}</p>
         ${item.size ? `<p class="text-xs text-gray-500">Talle: ${item.size}</p>` : ''}
-        <p class="text-sm text-gray-600">$${item.price}</p>
+        <p class="text-sm text-gray-600">$${formatPrice(item.price)}</p>
         <div class="flex gap-2 mt-1">
           <button onclick="changeQty(${item.id}, '${item.size}', -1)" class="bg-gray-200 px-2 rounded">-</button>
           <span>${item.qty}</span>
           <button onclick="changeQty(${item.id}, '${item.size}', 1)" class="bg-gray-200 px-2 rounded">+</button>
         </div>
       </div>
-      <span class="font-bold">$${(item.price * item.qty).toFixed(2)}</span>
+      <span class="font-bold">$${formatPrice(item.price * item.qty)}</span>
     </div>
   `).join('');
 }
@@ -436,14 +1080,14 @@ function changeQty(productId, size, delta) {
 function handleCheckout() {
   if (cart.length === 0) return alert('Carrito vacío');
   const total = cart.reduce((sum, item) => sum + (item.price * item.qty), 0);
-  $('paymentTotal').textContent = '$' + total.toFixed(2);
+  $('paymentTotal').textContent = '$' + formatPrice(total);
   $('cartSidebar').classList.add('translate-x-full');
   $('paymentModal').classList.remove('hidden');
 }
 
 function showCardForm() {
   const total = cart.reduce((sum, item) => sum + (item.price * item.qty), 0);
-  $('cardTotal').textContent = '$' + total.toFixed(2);
+  $('cardTotal').textContent = '$' + formatPrice(total);
   $('paymentModal').classList.add('hidden');
   $('cardModal').classList.remove('hidden');
   
@@ -551,9 +1195,9 @@ function handleWhatsApp() {
   const total = cart.reduce((sum, item) => sum + (item.price * item.qty), 0);
   let msg = 'Hola! Quiero comprar:\n\n';
   cart.forEach(item => {
-    msg += `${item.name} x${item.qty} - $${(item.price * item.qty).toFixed(2)}\n`;
+    msg += `${item.name} x${item.qty} - $${formatPrice(item.price * item.qty)}\n`;
   });
-  msg += `\nTotal: $${total.toFixed(2)}`;
+  msg += `\nTotal: $${formatPrice(total)}`;
   
   const url = 'https://wa.me/5493764416263?text=' + encodeURIComponent(msg);
   window.open(url, '_blank');
@@ -591,7 +1235,7 @@ async function loadAdminProducts() {
       </div>
       <div class="flex-1">
         <p class="font-bold">${p.name}</p>
-        <p class="text-sm text-gray-600">$${p.price}</p>
+        <p class="text-sm text-gray-600">$${formatPrice(p.price)}</p>
         ${sizes.length > 0 ? `<p class="text-xs text-gray-500">Talles: ${sizes.join(', ')}</p>` : ''}
         <p class="text-xs ${stock === 0 ? 'text-red-600' : 'text-green-600'}">Stock: ${stock}</p>
         ${imageCount > 1 ? `<p class="text-xs text-blue-600"><i class="fas fa-images mr-1"></i>${imageCount} imágenes</p>` : ''}
@@ -611,6 +1255,16 @@ async function loadAdminProducts() {
 
 
 function openProductModal(productId = null) {
+  // Initialize ImageUploadManager
+  const progressIndicator = new ProgressIndicator('uploadProgress');
+  imageManager = new ImageUploadManager('imagePreview', {
+    maxImages: 10,
+    progressIndicator: progressIndicator
+  });
+  
+  // Initialize DragDropHandler
+  dragDropHandler = new DragDropHandler(imageManager);
+  
   if (productId) {
     const p = products.find(pr => pr.id === productId);
     $('productModalTitle').textContent = 'Editar Producto';
@@ -621,9 +1275,15 @@ function openProductModal(productId = null) {
     $('productStock').value = p.stock || 0;
     $('productSizes').value = p.sizes || '';
     
-    // Cargar imágenes existentes
-    currentImages = getProductImages(p);
-    updateImagePreview();
+    // Cargar imágenes existentes usando ImageUploadManager
+    const existingImages = getProductImages(p);
+    imageManager.loadImages(existingImages);
+    currentImages = existingImages;
+    
+    // Attach drag handlers after render
+    setTimeout(() => {
+      dragDropHandler.attachAllHandlers();
+    }, 100);
   } else {
     $('productModalTitle').textContent = 'Agregar Producto';
     $('productId').value = '';
@@ -632,8 +1292,8 @@ function openProductModal(productId = null) {
     $('productPrice').value = '';
     $('productStock').value = '0';
     $('productSizes').value = '';
+    imageManager.clear();
     currentImages = [];
-    $('imagePreview').innerHTML = '';
   }
   $('productModal').classList.remove('hidden');
 }
@@ -643,24 +1303,38 @@ function editProduct(id) {
 }
 
 async function saveProduct() {
+  console.log('saveProduct called');
   const id = $('productId').value;
   const name = $('productName').value;
   const description = $('productDesc').value;
   const price = parseFloat($('productPrice').value);
   const stock = parseInt($('productStock').value) || 0;
   
+  console.log('Product data:', { id, name, description, price, stock });
+  
+  // Validar campos requeridos
+  if (!name || !description || !price) {
+    alert('Por favor completa todos los campos requeridos (nombre, descripción, precio)');
+    return;
+  }
+  
   // Obtener talles ingresados (limpiar espacios)
   const sizesInput = $('productSizes').value.trim();
   const sizes = sizesInput ? sizesInput.split(',').map(s => s.trim()).filter(s => s) : [];
   
-  // Usar currentImages que ya contiene las imágenes (existentes + nuevas)
-  if (currentImages.length === 0) {
+  // Get images from ImageUploadManager
+  const images = imageManager ? imageManager.getImages() : currentImages;
+  
+  console.log('Images to save:', images.length, 'images');
+  console.log('ImageManager exists:', !!imageManager);
+  
+  if (images.length === 0) {
     alert('Debes agregar al menos una imagen');
     return;
   }
   
-  if (currentImages.length > 5) {
-    alert('Máximo 5 imágenes permitidas');
+  if (images.length > 10) {
+    alert('Máximo 10 imágenes permitidas');
     return;
   }
   
@@ -668,25 +1342,37 @@ async function saveProduct() {
   const method = id ? 'PUT' : 'POST';
   
   try {
-    await fetch(url, {
+    const response = await fetch(url, {
       method,
       headers: {'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token},
       body: JSON.stringify({
         name, 
         description, 
         price, 
-        images: currentImages,
-        image: currentImages[0], // Mantener compatibilidad
+        images: images,
+        image: images[0], // Mantener compatibilidad
         sizes, 
         stock
       })
     });
     
-    $('productModal').classList.add('hidden');
-    currentImages = [];
-    loadAdminProducts();
+    const data = await response.json();
+    
+    if (response.ok) {
+      alert(id ? 'Producto actualizado exitosamente' : 'Producto creado exitosamente');
+      $('productModal').classList.add('hidden');
+      currentImages = [];
+      if (imageManager) {
+        imageManager.clear();
+      }
+      loadAdminProducts();
+    } else {
+      alert('Error al guardar: ' + (data.error || 'Error desconocido'));
+      console.error('Error response:', data);
+    }
   } catch (err) {
-    alert('Error al guardar');
+    console.error('Error saving product:', err);
+    alert('Error al guardar: ' + err.message);
   }
 }
 
@@ -707,17 +1393,33 @@ async function deleteProduct(id) {
 // Variable global para almacenar imágenes actuales
 let currentImages = [];
 
+// Global ImageUploadManager instance
+let imageManager = null;
+let dragDropHandler = null;
+
 async function handleMultipleImages(files) {
   const images = [];
   for (const file of files) {
-    if (file.size > 2 * 1024 * 1024) {
-      alert(`La imagen ${file.name} excede 2MB`);
+    // Skip very large files (> 10MB before compression)
+    if (file.size > 10 * 1024 * 1024) {
+      alert(`La imagen ${file.name} es demasiado grande (> 10MB). Por favor selecciona una imagen más pequeña.`);
       continue;
     }
-    // TODO: Consider adding image compression here before converting to base64
-    // This would reduce storage size and improve load times
-    const base64 = await fileToBase64(file);
-    images.push(base64);
+    
+    try {
+      const result = await fileToBase64(file);
+      
+      // Validate compressed size
+      if (result.sizeKB > 1500) {
+        alert(`La imagen ${file.name} sigue siendo muy grande después de compresión (${result.sizeKB}KB). Intenta con una imagen más pequeña.`);
+        continue;
+      }
+      
+      images.push(result.base64);
+    } catch (error) {
+      console.error(`Error processing ${file.name}:`, error);
+      alert(`Error al procesar ${file.name}: ${error.message}`);
+    }
   }
   return images;
 }
@@ -725,73 +1427,63 @@ async function handleMultipleImages(files) {
 async function previewImages() {
   const files = $('productImages').files;
   
-  if (files.length > 5) {
-    alert('Máximo 5 imágenes permitidas');
-    $('productImages').value = '';
+  if (!imageManager) {
+    console.error('ImageUploadManager not initialized');
     return;
   }
   
-  currentImages = await handleMultipleImages(files);
-  updateImagePreview();
+  try {
+    await imageManager.addImages(files);
+    
+    // Update currentImages from manager
+    currentImages = imageManager.getImages();
+    
+    // Attach drag handlers after adding images
+    setTimeout(() => {
+      if (dragDropHandler) {
+        dragDropHandler.attachAllHandlers();
+      }
+    }, 100);
+  } catch (error) {
+    alert(error.message);
+  }
+  
+  // Clear file input
+  $('productImages').value = '';
 }
 
+// Legacy function - now handled by ImageUploadManager.render()
+// Kept for backward compatibility
 function updateImagePreview() {
-  const preview = $('imagePreview');
-  preview.innerHTML = currentImages.map((img, index) => `
-    <div class="relative group">
-      <img src="${img}" class="w-full h-24 object-cover rounded">
-      
-      <!-- Botón eliminar -->
-      <button type="button" onclick="removeImage(${index})" 
-              class="absolute top-1 right-1 bg-red-600 text-white rounded-full w-6 h-6 flex items-center justify-center hover:bg-red-700">
-        <i class="fas fa-times text-xs"></i>
-      </button>
-      
-      <!-- Botones de reordenamiento -->
-      <div class="absolute bottom-1 left-1 flex gap-1">
-        ${index > 0 ? `
-          <button type="button" onclick="moveImageLeft(${index})" 
-                  class="bg-blue-600 text-white rounded w-6 h-6 flex items-center justify-center hover:bg-blue-700">
-            <i class="fas fa-arrow-left text-xs"></i>
-          </button>
-        ` : ''}
-        ${index < currentImages.length - 1 ? `
-          <button type="button" onclick="moveImageRight(${index})" 
-                  class="bg-blue-600 text-white rounded w-6 h-6 flex items-center justify-center hover:bg-blue-700">
-            <i class="fas fa-arrow-right text-xs"></i>
-          </button>
-        ` : ''}
-      </div>
-      
-      <!-- Indicador de posición -->
-      <div class="absolute top-1 left-1 bg-black bg-opacity-60 text-white text-xs px-2 py-1 rounded">
-        ${index + 1}
-      </div>
-    </div>
-  `).join('');
+  if (imageManager) {
+    imageManager.render();
+  }
 }
 
+// Legacy functions - kept for backward compatibility
+// These are now handled by ImageUploadManager
 function moveImageLeft(index) {
-  if (index > 0) {
-    reorderImages(index, index - 1);
+  if (imageManager) {
+    imageManager.reorderImages(index, index - 1);
   }
 }
 
 function moveImageRight(index) {
-  if (index < currentImages.length - 1) {
-    reorderImages(index, index + 1);
+  if (imageManager) {
+    imageManager.reorderImages(index, index + 1);
   }
 }
 
 function reorderImages(fromIndex, toIndex) {
-  const [removed] = currentImages.splice(fromIndex, 1);
-  currentImages.splice(toIndex, 0, removed);
-  updateImagePreview();
+  if (imageManager) {
+    imageManager.reorderImages(fromIndex, toIndex);
+  }
 }
 
 function removeImage(index) {
-  currentImages.splice(index, 1);
-  updateImagePreview();
+  if (imageManager) {
+    imageManager.removeImage(index);
+  }
 }
 
 function previewImage() {
@@ -799,13 +1491,37 @@ function previewImage() {
   previewImages();
 }
 
-function fileToBase64(file) {
-  return new Promise((resolve, reject) => {
-    const reader = new FileReader();
-    reader.onload = () => resolve(reader.result);
-    reader.onerror = reject;
-    reader.readAsDataURL(file);
-  });
+/**
+ * Convert file to base64 with compression
+ * @param {File} file - Image file to convert
+ * @returns {Promise<Object>} - Object with base64, sizeKB, width, height, compressed
+ */
+async function fileToBase64(file) {
+  try {
+    const compressor = new ImageCompressor();
+    const result = await compressor.compress(file);
+    return result;
+  } catch (error) {
+    console.error('Error converting file to base64:', error);
+    // Fallback to simple conversion without compression
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => {
+        const base64 = reader.result;
+        const sizeKB = Math.round((base64.length * 0.75) / 1024);
+        resolve({
+          base64,
+          sizeKB,
+          width: 0,
+          height: 0,
+          compressed: false,
+          filename: file.name
+        });
+      };
+      reader.onerror = reject;
+      reader.readAsDataURL(file);
+    });
+  }
 }
 
 async function loadUsers() {
