@@ -830,9 +830,9 @@ function checkAuth() {
 }
 
 function setupEvents() {
-  // Auth
-  $('loginSubmit').onclick = handleLogin;
-  $('registerSubmit').onclick = handleRegister;
+  // Auth - Los formularios manejan el submit ahora
+  // $('loginSubmit').onclick = handleLogin;
+  // $('registerSubmit').onclick = handleRegister;
   $('showRegister').onclick = () => {
     $('loginModal').classList.add('hidden');
     $('registerModal').classList.remove('hidden');
@@ -841,6 +841,15 @@ function setupEvents() {
     $('registerModal').classList.add('hidden');
     $('loginModal').classList.remove('hidden');
   };
+  $('showForgotPassword').onclick = () => {
+    $('loginModal').classList.add('hidden');
+    $('forgotPasswordModal').classList.remove('hidden');
+  };
+  $('cancelForgotPassword').onclick = () => {
+    $('forgotPasswordModal').classList.add('hidden');
+    $('loginModal').classList.remove('hidden');
+  };
+  $('forgotPasswordSubmit').onclick = handleForgotPassword;
   $('logoutBtn').onclick = () => {
     localStorage.clear();
     location.reload();
@@ -947,6 +956,53 @@ async function handleRegister() {
   } catch (err) {
     $('regError').textContent = 'Error de conexión';
     $('regError').classList.remove('hidden');
+  }
+}
+
+async function handleForgotPassword() {
+  const identifier = $('forgotUser').value.trim();
+  
+  // Limpiar mensajes anteriores
+  $('forgotError').classList.add('hidden');
+  $('forgotSuccess').classList.add('hidden');
+  
+  if (!identifier) {
+    $('forgotError').textContent = 'Por favor ingresa tu usuario o email';
+    $('forgotError').classList.remove('hidden');
+    return;
+  }
+  
+  try {
+    const res = await fetch(API + '/forgot-password', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({identifier})
+    });
+    
+    const data = await res.json();
+    
+    if (res.ok) {
+      // Mostrar información del usuario encontrado
+      $('forgotSuccess').innerHTML = `
+        <strong>Usuario encontrado:</strong><br>
+        Usuario: ${data.username}<br>
+        Email: ${data.email}<br><br>
+        ${data.hint}<br><br>
+        <strong>Credenciales por defecto:</strong><br>
+        Usuario: admin<br>
+        Contraseña: admin123
+      `;
+      $('forgotSuccess').classList.remove('hidden');
+      
+      // Limpiar el campo
+      $('forgotUser').value = '';
+    } else {
+      $('forgotError').textContent = data.error || 'Usuario no encontrado';
+      $('forgotError').classList.remove('hidden');
+    }
+  } catch (err) {
+    $('forgotError').textContent = 'Error de conexión';
+    $('forgotError').classList.remove('hidden');
   }
 }
 
@@ -1169,7 +1225,21 @@ function formatDNI(e) {
 }
 
 async function handleMercadoPago() {
+  // Verificar autenticación
+  if (!token || !user) {
+    alert('Debes iniciar sesión para realizar un pago');
+    $('paymentModal').classList.add('hidden');
+    $('loginModal').classList.remove('hidden');
+    return;
+  }
+  
   const total = cart.reduce((sum, item) => sum + (item.price * item.qty), 0);
+  
+  // Mostrar loading
+  const mpButton = $('payMP');
+  const originalText = mpButton.innerHTML;
+  mpButton.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i>Procesando...';
+  mpButton.disabled = true;
   
   try {
     const res = await fetch(API + '/mp-link', {
@@ -1180,14 +1250,55 @@ async function handleMercadoPago() {
     
     const data = await res.json();
     
-    if (res.ok && data.link) {
-      window.open(data.link, '_blank');
-      $('paymentModal').classList.add('hidden');
+    if (res.ok) {
+      // Usar sandbox_link para TEST o link para PRODUCCIÓN
+      const paymentLink = data.sandbox_link || data.link;
+      
+      if (paymentLink) {
+        // Abrir link de pago en nueva ventana
+        const paymentWindow = window.open(paymentLink, '_blank');
+        
+        if (paymentWindow) {
+          alert('Se abrió una ventana con el link de pago de Mercado Pago.\n\n' + 
+                (data.sandbox_link ? '⚠️ Modo TEST - Usa tarjetas de prueba' : 'Pago real') +
+                '\n\nID: ' + data.preference_id);
+          
+          // Limpiar carrito después de generar el link
+          cart = [];
+          updateCart();
+          $('paymentModal').classList.add('hidden');
+        } else {
+          alert('Por favor permite las ventanas emergentes para completar el pago.\n\nLink de pago: ' + paymentLink);
+        }
+      } else {
+        alert('Preferencia de pago creada.\n\nID: ' + data.preference_id);
+        cart = [];
+        updateCart();
+        $('paymentModal').classList.add('hidden');
+      }
     } else {
-      alert('Mercado Pago no configurado');
+      // Error en la respuesta
+      let errorMsg = data.error || 'Error al procesar el pago con Mercado Pago';
+      
+      // Si es error 401 de Mercado Pago (credenciales inválidas)
+      if (res.status === 401) {
+        errorMsg = 'Las credenciales de Mercado Pago no son válidas.\n\n' +
+                   'Esto puede deberse a:\n' +
+                   '- Token de producción sin cuenta verificada\n' +
+                   '- Token de TEST requerido para pruebas\n\n' +
+                   'Por favor usa otro método de pago.';
+      }
+      
+      alert('Error al crear el pago:\n\n' + errorMsg);
+      console.error('Error de MP:', data);
     }
   } catch (err) {
-    alert('Error con Mercado Pago');
+    console.error('Error con Mercado Pago:', err);
+    alert('Error de conexión con Mercado Pago.\n\nPor favor intenta nuevamente.');
+  } finally {
+    // Restaurar botón
+    mpButton.innerHTML = originalText;
+    mpButton.disabled = false;
   }
 }
 
@@ -1199,7 +1310,7 @@ function handleWhatsApp() {
   });
   msg += `\nTotal: $${formatPrice(total)}`;
   
-  const url = 'https://wa.me/5493764416263?text=' + encodeURIComponent(msg);
+  const url = 'https://wa.me/5491122549995?text=' + encodeURIComponent(msg);
   window.open(url, '_blank');
   $('paymentModal').classList.add('hidden');
 }
