@@ -373,6 +373,16 @@ app.post('/api/mp-link', auth, async (req, res) => {
   }
 });
 
+// Health check endpoint (para keep-alive services)
+app.get('/health', (req, res) => {
+  res.status(200).json({ 
+    status: 'ok', 
+    timestamp: new Date().toISOString(),
+    uptime: Math.floor(process.uptime()),
+    environment: process.env.NODE_ENV || 'development'
+  });
+});
+
 // Catch-all route para SPA (debe ir al final)
 app.get('*', (req, res) => {
   // Solo servir index.html si no es una ruta de API
