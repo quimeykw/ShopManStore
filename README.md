@@ -16,7 +16,7 @@ Tienda de ropa online con panel de administración.
 - **Métodos de pago**:
   - Tarjeta de crédito
   - Mercado Pago (configurable)
-  - WhatsApp (549 3764 416263)
+  - WhatsApp (5491122549995)
 - **Panel Admin**:
   - Gestión de productos con galería de imágenes
   - Gestión de usuarios

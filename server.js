@@ -1,9 +1,10 @@
+require('dotenv').config();
 const express = require('express');
 const path = require('path');
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const cors = require('cors');
-const { MercadoPagoConfig, Preference } = require('mercadopago');
+const { MercadoPagoConfig, Payment } = require('mercadopago');
 const db = require('./db-config');
 const initDatabase = require('./init-db');
 
@@ -13,13 +14,13 @@ const JWT_SECRET = process.env.JWT_SECRET || 'shopmanstore_secret_key_2024';
 const isPostgres = !!process.env.DATABASE_URL;
 
 // Configurar Mercado Pago
-const MP_TOKEN = process.env.MP_TOKEN || 'APP_USR-5802293204482723-111823-41d8e3354a2e15c8dbc4802b59524b0d-3001373888';
+const MP_TOKEN = process.env.MP_TOKEN || 'APP_USR-312986056474853-112320-2e5d635775f72335200f0a75382f96a6-3008632533';
 let mpClient = null;
-let mpPreference = null;
+let mpPayment = null;
 
 try {
   mpClient = new MercadoPagoConfig({ accessToken: MP_TOKEN });
-  mpPreference = new Preference(mpClient);
+  mpPayment = new Payment(mpClient);
   console.log('Mercado Pago configurado correctamente');
 } catch (error) {
   console.error('Error al configurar Mercado Pago:', error.message);
@@ -78,6 +79,38 @@ app.post('/api/register', (req, res) => {
       res.json({ message: 'Registrado exitosamente' });
     }
   );
+});
+
+// FORGOT PASSWORD
+app.post('/api/forgot-password', (req, res) => {
+  const { identifier } = req.body; // username or email
+  
+  // Buscar usuario por username o email
+  db.get('SELECT * FROM users WHERE username = ? OR email = ?', [identifier, identifier], (err, user) => {
+    if (!user) {
+      return res.status(404).json({ error: 'Usuario no encontrado' });
+    }
+    
+    // Por seguridad, en producción deberías enviar un email con un token
+    // Para desarrollo, devolvemos la información directamente
+    res.json({ 
+      message: 'Usuario encontrado',
+      username: user.username,
+      email: user.email,
+      hint: 'Contacta al administrador para restablecer tu contraseña'
+    });
+  });
+});
+
+// RESET PASSWORD (para que el admin pueda resetear contraseñas)
+app.post('/api/reset-password', auth, isAdmin, (req, res) => {
+  const { userId, newPassword } = req.body;
+  const hash = bcrypt.hashSync(newPassword, 10);
+  
+  db.run('UPDATE users SET password = ? WHERE id = ?', [hash, userId], (err) => {
+    if (err) return res.status(500).json({ error: 'Error al actualizar contraseña' });
+    res.json({ message: 'Contraseña actualizada exitosamente' });
+  });
 });
 
 // PRODUCTS
@@ -209,24 +242,126 @@ app.get('/api/logs', auth, isAdmin, (req, res) => {
 });
 
 // MERCADO PAGO
-app.post('/api/mp-link', auth, async (req, res) => {
-  if (!mpPreference) return res.status(503).json({ error: 'MP no configurado' });
+// Crear pago con Mercado Pago
+app.post('/api/mp-payment', auth, async (req, res) => {
+  if (!mpPayment) return res.status(503).json({ error: 'MP no configurado' });
   
   try {
-    const { items, total } = req.body;
+    const { items, total, paymentData } = req.body;
+    
+    // Crear el pago
     const body = {
-      items: items.map(i => ({
-        title: i.name,
-        unit_price: Number(i.price),
-        quantity: Number(i.qty),
-        currency_id: 'ARS'
-      }))
+      transaction_amount: Number(total),
+      description: items.map(i => `${i.name} x${i.qty}`).join(', '),
+      payment_method_id: paymentData.payment_method_id || 'visa',
+      payer: {
+        email: paymentData.email || req.user.username + '@shopmanstore.com',
+        identification: {
+          type: paymentData.identification_type || 'DNI',
+          number: paymentData.identification_number || '12345678'
+        }
+      },
+      token: paymentData.token, // Token de la tarjeta generado por MP.js
+      installments: paymentData.installments || 1,
+      issuer_id: paymentData.issuer_id
     };
     
-    const response = await mpPreference.create({ body });
-    res.json({ link: response.init_point || response.sandbox_init_point });
+    const response = await mpPayment.create({ body });
+    
+    // Guardar la orden en la base de datos
+    db.run('INSERT INTO orders (user_id, total, payment_method) VALUES (?, ?, ?)',
+      [req.user.id, total, 'Mercado Pago'],
+      (err) => {
+        if (err) console.error('Error saving order:', err);
+      }
+    );
+    
+    res.json({ 
+      status: response.status,
+      status_detail: response.status_detail,
+      id: response.id,
+      payment_id: response.id
+    });
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    console.error('MP Payment Error:', err);
+    res.status(500).json({ error: err.message || 'Error al procesar el pago' });
+  }
+});
+
+// Endpoint alternativo para generar link de pago (mantener compatibilidad)
+app.post('/api/mp-link', auth, async (req, res) => {
+  try {
+    const { items, total } = req.body;
+    
+    // Validar datos
+    if (!items || !Array.isArray(items) || items.length === 0) {
+      return res.status(400).json({ error: 'Items requeridos' });
+    }
+    
+    if (!total || total <= 0) {
+      return res.status(400).json({ error: 'Total inválido' });
+    }
+    
+    console.log('Creando preferencia MP para:', req.user.username, 'Total:', total);
+    
+    // Crear preferencia de pago (funciona en TEST y PRODUCCIÓN)
+    const response = await fetch('https://api.mercadopago.com/checkout/preferences', {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${MP_TOKEN}`,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        items: items.map(item => ({
+          title: item.name,
+          quantity: item.qty,
+          unit_price: Number(item.price),
+          currency_id: 'ARS'
+        })),
+        payer: {
+          email: req.user.username + '@shopmanstore.com'
+        },
+        external_reference: `order_${Date.now()}`,
+        statement_descriptor: 'ShopManStore'
+      })
+    });
+    
+    const data = await response.json();
+    
+    console.log('Respuesta de MP:', {
+      status: response.status,
+      preference_id: data.id,
+      init_point: data.init_point
+    });
+    
+    if (response.ok) {
+      // Guardar la orden en la base de datos
+      db.run('INSERT INTO orders (user_id, total, payment_method) VALUES (?, ?, ?)',
+        [req.user.id, total, 'Mercado Pago - Pref: ' + data.id],
+        (err) => {
+          if (err) console.error('Error saving order:', err);
+          else console.log('Orden guardada exitosamente');
+        }
+      );
+      
+      res.json({ 
+        link: data.init_point, // Link para pagar
+        sandbox_link: data.sandbox_init_point, // Link para TEST
+        preference_id: data.id,
+        status: 'pending'
+      });
+    } else {
+      console.error('Error de MP:', data);
+      res.status(response.status).json({ 
+        error: data.message || data.error || 'Error al crear preferencia de pago',
+        details: data.cause || []
+      });
+    }
+  } catch (err) {
+    console.error('MP Link Error:', err);
+    res.status(500).json({ 
+      error: 'Error de conexión con Mercado Pago: ' + err.message 
+    });
   }
 });
 
