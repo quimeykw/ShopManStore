@@ -4,6 +4,7 @@ const path = require('path');
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const cors = require('cors');
+const compression = require('compression');
 const { MercadoPagoConfig, Payment } = require('mercadopago');
 const db = require('./db-config');
 const initDatabase = require('./init-db');
@@ -26,9 +27,16 @@ try {
   console.error('Error al configurar Mercado Pago:', error.message);
 }
 
+// Optimizaciones de rendimiento
+app.use(compression()); // Comprimir respuestas HTTP
 app.use(cors());
 app.use(express.json({ limit: '50mb' }));
-app.use(express.static(path.join(__dirname, 'public')));
+
+// Servir archivos estáticos con caché
+app.use(express.static(path.join(__dirname, 'public'), {
+  maxAge: '1d', // Cachear por 1 día
+  etag: true
+}));
 
 // Ruta principal para servir index.html
 app.get('/', (req, res) => {
