@@ -7,8 +7,8 @@ const DATABASE_URL = process.env.DATABASE_URL;
 
 let db;
 
-if (isProduction && DATABASE_URL) {
-  // PostgreSQL para producción
+if (DATABASE_URL) {
+  // PostgreSQL (producción o desarrollo)
   console.log('Usando PostgreSQL');
   const pool = new Pool({
     connectionString: DATABASE_URL,
