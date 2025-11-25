@@ -976,28 +976,30 @@ async function handleForgotPassword() {
     const res = await fetch(API + '/forgot-password', {
       method: 'POST',
       headers: {'Content-Type': 'application/json'},
-      body: JSON.stringify({identifier})
+      body: JSON.stringify({usernameOrEmail: identifier})
     });
     
     const data = await res.json();
     
     if (res.ok) {
-      // Mostrar información del usuario encontrado
+      // Mostrar mensaje de éxito
       $('forgotSuccess').innerHTML = `
-        <strong>Usuario encontrado:</strong><br>
-        Usuario: ${data.username}<br>
-        Email: ${data.email}<br><br>
-        ${data.hint}<br><br>
-        <strong>Credenciales por defecto:</strong><br>
-        Usuario: admin<br>
-        Contraseña: admin123
+        <strong>✓ Solicitud enviada</strong><br><br>
+        ${data.message}<br><br>
+        <small>Revisa tu bandeja de entrada y spam.</small>
       `;
       $('forgotSuccess').classList.remove('hidden');
       
       // Limpiar el campo
       $('forgotUser').value = '';
+      
+      // Cerrar modal después de 5 segundos
+      setTimeout(() => {
+        $('forgotPasswordModal').classList.add('hidden');
+        $('loginModal').classList.remove('hidden');
+      }, 5000);
     } else {
-      $('forgotError').textContent = data.error || 'Usuario no encontrado';
+      $('forgotError').textContent = data.error || 'Error al procesar la solicitud';
       $('forgotError').classList.remove('hidden');
     }
   } catch (err) {
@@ -1173,31 +1175,61 @@ async function processCardPayment() {
   
   const total = cart.reduce((sum, item) => sum + (item.price * item.qty), 0);
   
+  // Deshabilitar botón mientras procesa
+  const processBtn = $('processCard');
+  processBtn.disabled = true;
+  processBtn.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i>Procesando pago...';
+  
   try {
-    const res = await fetch(API + '/orders', {
+    // Preparar datos del pago para Mercado Pago
+    const [expMonth, expYear] = cardExpiry.split('/');
+    
+    const paymentData = {
+      items: cart.map(item => ({
+        name: item.name,
+        qty: item.qty,
+        price: item.price
+      })),
+      total: total,
+      paymentData: {
+        card_number: cardNumber,
+        cardholder_name: cardName,
+        expiration_month: expMonth,
+        expiration_year: '20' + expYear,
+        security_code: cardCVV,
+        identification_type: 'DNI',
+        identification_number: cardDNI,
+        payment_method_id: 'visa', // Detectar automáticamente en producción
+        installments: 1
+      }
+    };
+    
+    const res = await fetch(API + '/mp-payment', {
       method: 'POST',
-      headers: {'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token},
-      body: JSON.stringify({
-        total, 
-        paymentMethod: 'Tarjeta',
-        cardData: {
-          lastDigits: cardNumber.slice(-4),
-          cardHolder: cardName,
-          dni: cardDNI
-        }
-      })
+      headers: {
+        'Content-Type': 'application/json', 
+        'Authorization': 'Bearer ' + token
+      },
+      body: JSON.stringify(paymentData)
     });
     
-    if (res.ok) {
-      alert('¡Pago procesado exitosamente!');
+    const data = await res.json();
+    
+    if (res.ok && (data.status === 'approved' || data.status === 'in_process')) {
+      alert('¡Pago procesado exitosamente!\n\nID de pago: ' + data.payment_id);
       cart = [];
       updateCart();
       $('cardModal').classList.add('hidden');
+      $('paymentModal').classList.add('hidden');
     } else {
-      alert('Error al procesar el pago');
+      alert('Error al procesar el pago:\n' + (data.error || data.status_detail || 'Intenta nuevamente'));
+      processBtn.disabled = false;
+      processBtn.innerHTML = '<i class="fas fa-lock mr-2"></i>Procesar Pago';
     }
   } catch (err) {
-    alert('Error de conexión');
+    alert('Error de conexión: ' + err.message);
+    processBtn.disabled = false;
+    processBtn.innerHTML = '<i class="fas fa-lock mr-2"></i>Procesar Pago';
   }
 }
 
