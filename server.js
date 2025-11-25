@@ -89,36 +89,149 @@ app.post('/api/register', (req, res) => {
   );
 });
 
-// FORGOT PASSWORD
-app.post('/api/forgot-password', (req, res) => {
-  const { identifier } = req.body; // username or email
+// PASSWORD RECOVERY SYSTEM
+const crypto = require('crypto');
+const { sendPasswordResetEmail, emailEnabled } = require('./email-service');
+
+// Rate limiting storage (in-memory, consider Redis for production)
+const resetRequestTimes = new Map();
+const RATE_LIMIT_MINUTES = 5;
+
+// Request password reset
+app.post('/api/forgot-password', async (req, res) => {
+  const { usernameOrEmail } = req.body;
   
-  // Buscar usuario por username o email
-  db.get('SELECT * FROM users WHERE username = ? OR email = ?', [identifier, identifier], (err, user) => {
-    if (!user) {
-      return res.status(404).json({ error: 'Usuario no encontrado' });
+  // Validate input
+  if (!usernameOrEmail || !usernameOrEmail.trim()) {
+    return res.status(400).json({ error: 'Por favor ingresa tu usuario o email' });
+  }
+  
+  // Find user
+  db.get('SELECT * FROM users WHERE username = ? OR email = ?', 
+    [usernameOrEmail, usernameOrEmail], 
+    async (err, user) => {
+      // Always return success message for security (don't reveal if user exists)
+      const successMessage = 'Si el usuario existe, recibirás un email con instrucciones para restablecer tu contraseña';
+      
+      if (err || !user) {
+        return res.json({ message: successMessage });
+      }
+      
+      // Check rate limiting
+      const lastRequest = resetRequestTimes.get(user.id);
+      if (lastRequest && Date.now() - lastRequest < RATE_LIMIT_MINUTES * 60 * 1000) {
+        return res.status(429).json({ 
+          error: `Por favor espera ${RATE_LIMIT_MINUTES} minutos antes de solicitar otro restablecimiento` 
+        });
+      }
+      
+      // Check if email service is configured
+      if (!emailEnabled) {
+        return res.status(503).json({ 
+          error: 'El servicio de recuperación de contraseña no está disponible. Contacta al administrador.' 
+        });
+      }
+      
+      // Generate secure token
+      const token = crypto.randomBytes(32).toString('hex');
+      const expiresAt = new Date(Date.now() + 60 * 60 * 1000); // 1 hour from now
+      
+      // Invalidate previous unused tokens for this user
+      db.run('UPDATE password_resets SET used = ? WHERE user_id = ? AND used = ?', 
+        [isPostgres ? true : 1, user.id, isPostgres ? false : 0]);
+      
+      // Store token in database
+      db.run(
+        'INSERT INTO password_resets (user_id, token, expires_at) VALUES (?, ?, ?)',
+        [user.id, token, expiresAt],
+        async (err) => {
+          if (err) {
+            console.error('Error storing reset token:', err);
+            return res.status(500).json({ error: 'Error al procesar la solicitud' });
+          }
+          
+          // Send email
+          const emailSent = await sendPasswordResetEmail(user, token);
+          
+          if (!emailSent) {
+            return res.status(500).json({ error: 'Error al enviar el email' });
+          }
+          
+          // Update rate limiting
+          resetRequestTimes.set(user.id, Date.now());
+          
+          res.json({ message: successMessage });
+        }
+      );
     }
-    
-    // Por seguridad, en producción deberías enviar un email con un token
-    // Para desarrollo, devolvemos la información directamente
-    res.json({ 
-      message: 'Usuario encontrado',
-      username: user.username,
-      email: user.email,
-      hint: 'Contacta al administrador para restablecer tu contraseña'
-    });
-  });
+  );
 });
 
-// RESET PASSWORD (para que el admin pueda resetear contraseñas)
-app.post('/api/reset-password', auth, isAdmin, (req, res) => {
-  const { userId, newPassword } = req.body;
-  const hash = bcrypt.hashSync(newPassword, 10);
+// Verify reset token
+app.get('/api/verify-reset-token/:token', (req, res) => {
+  const { token } = req.params;
   
-  db.run('UPDATE users SET password = ? WHERE id = ?', [hash, userId], (err) => {
-    if (err) return res.status(500).json({ error: 'Error al actualizar contraseña' });
-    res.json({ message: 'Contraseña actualizada exitosamente' });
-  });
+  db.get(
+    'SELECT * FROM password_resets WHERE token = ? AND used = ? AND expires_at > ?',
+    [token, isPostgres ? false : 0, new Date()],
+    (err, resetToken) => {
+      if (err || !resetToken) {
+        return res.json({ 
+          valid: false, 
+          message: 'Token inválido o expirado' 
+        });
+      }
+      
+      res.json({ valid: true });
+    }
+  );
+});
+
+// Reset password with token
+app.post('/api/reset-password', (req, res) => {
+  const { token, newPassword, confirmPassword } = req.body;
+  
+  // Validate passwords match
+  if (newPassword !== confirmPassword) {
+    return res.status(400).json({ error: 'Las contraseñas no coinciden' });
+  }
+  
+  // Validate password strength (minimum 6 characters)
+  if (!newPassword || newPassword.length < 6) {
+    return res.status(400).json({ error: 'La contraseña debe tener al menos 6 caracteres' });
+  }
+  
+  // Verify token
+  db.get(
+    'SELECT * FROM password_resets WHERE token = ? AND used = ? AND expires_at > ?',
+    [token, isPostgres ? false : 0, new Date()],
+    (err, resetToken) => {
+      if (err || !resetToken) {
+        return res.status(400).json({ error: 'Token inválido o expirado' });
+      }
+      
+      // Hash new password
+      const hash = bcrypt.hashSync(newPassword, 10);
+      
+      // Update user password
+      db.run('UPDATE users SET password = ? WHERE id = ?', [hash, resetToken.user_id], (err) => {
+        if (err) {
+          console.error('Error updating password:', err);
+          return res.status(500).json({ error: 'Error al actualizar la contraseña' });
+        }
+        
+        // Mark token as used
+        db.run('UPDATE password_resets SET used = ? WHERE token = ?', 
+          [isPostgres ? true : 1, token], 
+          (err) => {
+            if (err) console.error('Error marking token as used:', err);
+          }
+        );
+        
+        res.json({ message: 'Contraseña actualizada exitosamente' });
+      });
+    }
+  );
 });
 
 // PRODUCTS
@@ -257,28 +370,46 @@ app.post('/api/mp-payment', auth, async (req, res) => {
   try {
     const { items, total, paymentData } = req.body;
     
-    // Crear el pago
+    // Crear el pago con datos de tarjeta
     const body = {
       transaction_amount: Number(total),
       description: items.map(i => `${i.name} x${i.qty}`).join(', '),
       payment_method_id: paymentData.payment_method_id || 'visa',
       payer: {
-        email: paymentData.email || req.user.username + '@shopmanstore.com',
+        email: req.user.email || req.user.username + '@shopmanstore.com',
         identification: {
           type: paymentData.identification_type || 'DNI',
           number: paymentData.identification_number || '12345678'
         }
       },
-      token: paymentData.token, // Token de la tarjeta generado por MP.js
-      installments: paymentData.installments || 1,
-      issuer_id: paymentData.issuer_id
+      // Datos de la tarjeta (solo para testing)
+      card_number: paymentData.card_number,
+      cardholder: {
+        name: paymentData.cardholder_name,
+        identification: {
+          type: paymentData.identification_type || 'DNI',
+          number: paymentData.identification_number
+        }
+      },
+      security_code: paymentData.security_code,
+      expiration_month: paymentData.expiration_month,
+      expiration_year: paymentData.expiration_year,
+      installments: paymentData.installments || 1
     };
+    
+    console.log('Procesando pago MP:', {
+      amount: body.transaction_amount,
+      method: body.payment_method_id,
+      user: req.user.username
+    });
     
     const response = await mpPayment.create({ body });
     
+    console.log('Respuesta MP:', response.status, response.status_detail);
+    
     // Guardar la orden en la base de datos
     db.run('INSERT INTO orders (user_id, total, payment_method) VALUES (?, ?, ?)',
-      [req.user.id, total, 'Mercado Pago'],
+      [req.user.id, total, 'Mercado Pago - Tarjeta'],
       (err) => {
         if (err) console.error('Error saving order:', err);
       }
