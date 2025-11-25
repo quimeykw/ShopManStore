@@ -62,6 +62,17 @@ const isAdmin = (req, res, next) => {
   next();
 };
 
+// Función para guardar logs
+const saveLog = (userId, action, details = '') => {
+  db.run(
+    'INSERT INTO logs (user_id, action, details) VALUES (?, ?, ?)',
+    [userId, action, details],
+    (err) => {
+      if (err) console.error('Error saving log:', err.message);
+    }
+  );
+};
+
 // AUTH
 app.post('/api/login', (req, res) => {
   const { username, password } = req.body;
@@ -70,6 +81,9 @@ app.post('/api/login', (req, res) => {
     if (!user || !bcrypt.compareSync(password, user.password)) {
       return res.status(401).json({ error: 'Credenciales inválidas' });
     }
+    
+    // Guardar log de inicio de sesión
+    saveLog(user.id, 'Login', `Usuario ${user.username} inició sesión`);
     
     const token = jwt.sign({ id: user.id, username: user.username, role: user.role }, JWT_SECRET);
     res.json({ token, user: { id: user.id, username: user.username, role: user.role } });
@@ -84,6 +98,10 @@ app.post('/api/register', (req, res) => {
     [username, email, hash], 
     function(err) {
       if (err) return res.status(400).json({ error: 'Usuario ya existe' });
+      
+      // Guardar log de registro
+      saveLog(this.lastID, 'Registro', `Nuevo usuario registrado: ${username}`);
+      
       res.json({ message: 'Registrado exitosamente' });
     }
   );
@@ -348,6 +366,10 @@ app.post('/api/orders', auth, (req, res) => {
     [req.user.id, total, paymentMethod],
     (err) => {
       if (err) return res.status(500).json({ error: 'Error' });
+      
+      // Guardar log de orden creada
+      saveLog(req.user.id, 'Orden creada', `Método: ${paymentMethod}, Total: $${total}`);
+      
       res.json({ message: 'Orden creada' });
     }
   );
