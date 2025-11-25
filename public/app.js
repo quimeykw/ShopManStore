@@ -1154,83 +1154,14 @@ function showCardForm() {
 }
 
 async function processCardPayment() {
-  const cardNumber = $('cardNumber').value.replace(/\s/g, '');
-  const cardName = $('cardName').value;
-  const cardExpiry = $('cardExpiry').value;
-  const cardCVV = $('cardCVV').value;
-  const cardDNI = $('cardDNI').value;
+  // Cerrar el modal de tarjeta y usar Mercado Pago Checkout
+  $('cardModal').classList.add('hidden');
   
-  // Validaciones básicas
-  if (cardNumber.length < 13 || cardNumber.length > 19) {
-    return alert('Número de tarjeta inválido');
-  }
+  // Redirigir al flujo de Mercado Pago (más seguro y funciona con credenciales TEST)
+  alert('Serás redirigido a Mercado Pago para completar el pago de forma segura');
   
-  if (!cardExpiry.match(/^\d{2}\/\d{2}$/)) {
-    return alert('Fecha de vencimiento inválida (MM/AA)');
-  }
-  
-  if (cardCVV.length < 3 || cardCVV.length > 4) {
-    return alert('CVV inválido');
-  }
-  
-  const total = cart.reduce((sum, item) => sum + (item.price * item.qty), 0);
-  
-  // Deshabilitar botón mientras procesa
-  const processBtn = $('processCard');
-  processBtn.disabled = true;
-  processBtn.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i>Procesando pago...';
-  
-  try {
-    // Preparar datos del pago para Mercado Pago
-    const [expMonth, expYear] = cardExpiry.split('/');
-    
-    const paymentData = {
-      items: cart.map(item => ({
-        name: item.name,
-        qty: item.qty,
-        price: item.price
-      })),
-      total: total,
-      paymentData: {
-        card_number: cardNumber,
-        cardholder_name: cardName,
-        expiration_month: expMonth,
-        expiration_year: '20' + expYear,
-        security_code: cardCVV,
-        identification_type: 'DNI',
-        identification_number: cardDNI,
-        payment_method_id: 'visa', // Detectar automáticamente en producción
-        installments: 1
-      }
-    };
-    
-    const res = await fetch(API + '/mp-payment', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json', 
-        'Authorization': 'Bearer ' + token
-      },
-      body: JSON.stringify(paymentData)
-    });
-    
-    const data = await res.json();
-    
-    if (res.ok && (data.status === 'approved' || data.status === 'in_process')) {
-      alert('¡Pago procesado exitosamente!\n\nID de pago: ' + data.payment_id);
-      cart = [];
-      updateCart();
-      $('cardModal').classList.add('hidden');
-      $('paymentModal').classList.add('hidden');
-    } else {
-      alert('Error al procesar el pago:\n' + (data.error || data.status_detail || 'Intenta nuevamente'));
-      processBtn.disabled = false;
-      processBtn.innerHTML = '<i class="fas fa-lock mr-2"></i>Procesar Pago';
-    }
-  } catch (err) {
-    alert('Error de conexión: ' + err.message);
-    processBtn.disabled = false;
-    processBtn.innerHTML = '<i class="fas fa-lock mr-2"></i>Procesar Pago';
-  }
+  // Usar el mismo flujo que el botón "Mercado Pago"
+  handleMercadoPago();
 }
 
 // Format functions
