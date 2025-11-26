@@ -72,11 +72,12 @@ const formatPurchaseLog = (items, total, paymentMethod) => {
   // Formatear lista de productos
   const productList = items.map(item => {
     const size = item.size ? ` (${item.size})` : '';
-    return `${item.name}${size} x${item.quantity}`;
+    const qty = item.quantity || item.qty || 1;
+    return `${item.name}${size} x${qty}`;
   }).join(', ');
   
   // Calcular total de productos
-  const totalProducts = items.reduce((sum, item) => sum + item.quantity, 0);
+  const totalProducts = items.reduce((sum, item) => sum + (item.quantity || item.qty || 1), 0);
   
   return `Productos: ${productList} | Total productos: ${totalProducts} | Método: ${paymentMethod} | Total: $${total}`;
 };
@@ -444,11 +445,30 @@ app.get('/api/orders', auth, (req, res) => {
   db.all(query, params, (err, rows) => {
     if (err) return res.status(500).json({ error: 'Error al obtener órdenes' });
     
-    // Parsear items de JSON a array
-    const orders = (rows || []).map(order => ({
-      ...order,
-      items: order.items ? JSON.parse(order.items) : []
-    }));
+    // Parsear items de JSON a array con manejo de errores
+    const orders = (rows || []).map(order => {
+      let parsedItems = [];
+      
+      if (order.items) {
+        try {
+          // Si items es un string, parsearlo
+          if (typeof order.items === 'string') {
+            parsedItems = JSON.parse(order.items);
+          } else {
+            // Si ya es un objeto/array, usarlo directamente
+            parsedItems = order.items;
+          }
+        } catch (e) {
+          console.error('Error parsing items for order', order.id, ':', e.message);
+          parsedItems = [];
+        }
+      }
+      
+      return {
+        ...order,
+        items: parsedItems
+      };
+    });
     
     res.json(orders);
   });
@@ -512,35 +532,39 @@ app.post('/api/mp-payment', auth, async (req, res) => {
     const itemsJson = items && items.length > 0 ? JSON.stringify(items) : null;
     db.run('INSERT INTO orders (user_id, total, payment_method, items) VALUES (?, ?, ?, ?)',
       [req.user.id, total, 'Mercado Pago - Tarjeta', itemsJson],
-      async (err) => {
+      function(err) {
         if (err) {
           console.error('Error saving order:', err);
           return;
         }
         
+        const orderId = this.lastID;
+        
         // Guardar log con detalles
         const logDetails = formatPurchaseLog(items || [], total, 'Mercado Pago - Tarjeta');
         saveLog(req.user.id, 'Compra realizada', logDetails);
         
-        // Enviar notificación WhatsApp
-        try {
-          const orderData = {
-            orderId: this.lastID,
-            items: items || [],
-            total,
-            paymentMethod: 'Mercado Pago - Tarjeta',
-            username: req.user.username,
-            timestamp: new Date()
-          };
-          
-          const whatsappSent = await sendPurchaseNotification(orderData);
-          if (whatsappSent) {
-            saveLog(req.user.id, 'WhatsApp enviado', `Notificación enviada para orden #${this.lastID}`);
+        // Enviar notificación WhatsApp (sin await para no bloquear)
+        (async () => {
+          try {
+            const orderData = {
+              orderId: orderId,
+              items: items || [],
+              total,
+              paymentMethod: 'Mercado Pago - Tarjeta',
+              username: req.user.username,
+              timestamp: new Date()
+            };
+            
+            const whatsappSent = await sendPurchaseNotification(orderData);
+            if (whatsappSent) {
+              saveLog(req.user.id, 'WhatsApp enviado', `Notificación enviada para orden #${orderId}`);
+            }
+          } catch (error) {
+            console.error('Error al enviar WhatsApp:', error.message);
+            saveLog(req.user.id, 'Error WhatsApp', `Fallo al enviar notificación: ${error.message}`);
           }
-        } catch (error) {
-          console.error('Error al enviar WhatsApp:', error.message);
-          saveLog(req.user.id, 'Error WhatsApp', `Fallo al enviar notificación: ${error.message}`);
-        }
+        })();
       }
     );
     
@@ -582,7 +606,7 @@ app.post('/api/mp-link', auth, async (req, res) => {
       body: JSON.stringify({
         items: items.map(item => ({
           title: item.name,
-          quantity: item.qty,
+          quantity: item.quantity || item.qty || 1,
           unit_price: Number(item.price),
           currency_id: 'ARS'
         })),
@@ -607,37 +631,40 @@ app.post('/api/mp-link', auth, async (req, res) => {
       const itemsJson = items && items.length > 0 ? JSON.stringify(items) : null;
       db.run('INSERT INTO orders (user_id, total, payment_method, items) VALUES (?, ?, ?, ?)',
         [req.user.id, total, 'Mercado Pago - Pref: ' + data.id, itemsJson],
-        async function(err) {
+        function(err) {
           if (err) {
             console.error('Error saving order:', err);
             return;
           }
           
-          console.log('Orden guardada exitosamente');
+          const orderId = this.lastID;
+          console.log('Orden guardada exitosamente, ID:', orderId);
           
           // Guardar log con detalles
           const logDetails = formatPurchaseLog(items || [], total, 'Mercado Pago - Link');
           saveLog(req.user.id, 'Compra realizada', logDetails);
           
-          // Enviar notificación WhatsApp
-          try {
-            const orderData = {
-              orderId: this.lastID,
-              items: items || [],
-              total,
-              paymentMethod: 'Mercado Pago - Link',
-              username: req.user.username,
-              timestamp: new Date()
-            };
-            
-            const whatsappSent = await sendPurchaseNotification(orderData);
-            if (whatsappSent) {
-              saveLog(req.user.id, 'WhatsApp enviado', `Notificación enviada para orden #${this.lastID}`);
+          // Enviar notificación WhatsApp (sin await para no bloquear)
+          (async () => {
+            try {
+              const orderData = {
+                orderId: orderId,
+                items: items || [],
+                total,
+                paymentMethod: 'Mercado Pago - Link',
+                username: req.user.username,
+                timestamp: new Date()
+              };
+              
+              const whatsappSent = await sendPurchaseNotification(orderData);
+              if (whatsappSent) {
+                saveLog(req.user.id, 'WhatsApp enviado', `Notificación enviada para orden #${orderId}`);
+              }
+            } catch (error) {
+              console.error('Error al enviar WhatsApp:', error.message);
+              saveLog(req.user.id, 'Error WhatsApp', `Fallo al enviar notificación: ${error.message}`);
             }
-          } catch (error) {
-            console.error('Error al enviar WhatsApp:', error.message);
-            saveLog(req.user.id, 'Error WhatsApp', `Fallo al enviar notificación: ${error.message}`);
-          }
+          })();
         }
       );
       

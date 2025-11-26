@@ -27,8 +27,21 @@ if (DATABASE_URL) {
         callback = params;
         params = [];
       }
-      pool.query(convertSQL(sql), params)
-        .then(result => callback && callback(null, result))
+      
+      // Si es un INSERT, agregar RETURNING id para obtener el lastID
+      let modifiedSql = sql;
+      if (sql.trim().toUpperCase().startsWith('INSERT') && !sql.toUpperCase().includes('RETURNING')) {
+        modifiedSql = sql.trim() + ' RETURNING id';
+      }
+      
+      pool.query(convertSQL(modifiedSql), params)
+        .then(result => {
+          // Simular el comportamiento de SQLite con this.lastID
+          const context = {
+            lastID: result.rows && result.rows[0] ? result.rows[0].id : undefined
+          };
+          callback && callback.call(context, null, result);
+        })
         .catch(err => callback && callback(err));
     },
     get: (sql, params, callback) => {
