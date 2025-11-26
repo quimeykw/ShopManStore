@@ -1228,8 +1228,8 @@ async function handleMercadoPago() {
     const data = await res.json();
     
     if (res.ok) {
-      // Usar sandbox_link para TEST o link para PRODUCCIÓN
-      const paymentLink = data.sandbox_link || data.link;
+      // Usar link de PRODUCCIÓN (pagos reales)
+      const paymentLink = data.link;
       
       if (paymentLink) {
         // Abrir link de pago en nueva ventana
@@ -1237,7 +1237,7 @@ async function handleMercadoPago() {
         
         if (paymentWindow) {
           alert('Se abrió una ventana con el link de pago de Mercado Pago.\n\n' + 
-                (data.sandbox_link ? '⚠️ Modo TEST - Usa tarjetas de prueba' : 'Pago real') +
+                '💳 PAGO REAL - Se cobrará dinero real\n' +
                 '\n\nID: ' + data.preference_id);
           
           // Limpiar carrito después de generar el link
