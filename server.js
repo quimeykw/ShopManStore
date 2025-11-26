@@ -8,6 +8,7 @@ const compression = require('compression');
 const { MercadoPagoConfig, Payment } = require('mercadopago');
 const db = require('./db-config');
 const initDatabase = require('./init-db');
+const { sendPurchaseNotification } = require('./whatsapp-service');
 
 const app = express();
 const PORT = process.env.PORT || 3001;
@@ -60,6 +61,24 @@ const auth = (req, res, next) => {
 const isAdmin = (req, res, next) => {
   if (req.user.role !== 'admin') return res.status(403).json({ error: 'Requiere admin' });
   next();
+};
+
+// Función para formatear detalles de compra para logs
+const formatPurchaseLog = (items, total, paymentMethod) => {
+  if (!items || items.length === 0) {
+    return `Método: ${paymentMethod}, Total: $${total}`;
+  }
+  
+  // Formatear lista de productos
+  const productList = items.map(item => {
+    const size = item.size ? ` (${item.size})` : '';
+    return `${item.name}${size} x${item.quantity}`;
+  }).join(', ');
+  
+  // Calcular total de productos
+  const totalProducts = items.reduce((sum, item) => sum + item.quantity, 0);
+  
+  return `Productos: ${productList} | Total productos: ${totalProducts} | Método: ${paymentMethod} | Total: $${total}`;
 };
 
 // Función para guardar logs
@@ -360,19 +379,79 @@ app.put('/api/users/:id/role', auth, isAdmin, (req, res) => {
 });
 
 // ORDERS
-app.post('/api/orders', auth, (req, res) => {
-  const { total, paymentMethod } = req.body;
-  db.run('INSERT INTO orders (user_id, total, payment_method) VALUES (?, ?, ?)',
-    [req.user.id, total, paymentMethod],
-    (err) => {
-      if (err) return res.status(500).json({ error: 'Error' });
+app.post('/api/orders', auth, async (req, res) => {
+  const { items, total, paymentMethod } = req.body;
+  
+  // Validar que items sea un array
+  if (items && !Array.isArray(items)) {
+    return res.status(400).json({ error: 'Items debe ser un array' });
+  }
+  
+  // Serializar items a JSON
+  const itemsJson = items && items.length > 0 ? JSON.stringify(items) : null;
+  
+  db.run('INSERT INTO orders (user_id, total, payment_method, items) VALUES (?, ?, ?, ?)',
+    [req.user.id, total, paymentMethod, itemsJson],
+    async function(err) {
+      if (err) return res.status(500).json({ error: 'Error al crear orden' });
       
-      // Guardar log de orden creada
-      saveLog(req.user.id, 'Orden creada', `Método: ${paymentMethod}, Total: $${total}`);
+      const orderId = this.lastID;
       
-      res.json({ message: 'Orden creada' });
+      // Guardar log de orden creada con detalles de productos
+      const logDetails = formatPurchaseLog(items || [], total, paymentMethod);
+      saveLog(req.user.id, 'Compra realizada', logDetails);
+      
+      // Enviar notificación WhatsApp (asíncrono, no bloquea la respuesta)
+      let whatsappSent = false;
+      try {
+        const orderData = {
+          orderId,
+          items: items || [],
+          total,
+          paymentMethod,
+          username: req.user.username,
+          timestamp: new Date()
+        };
+        
+        whatsappSent = await sendPurchaseNotification(orderData);
+        
+        if (whatsappSent) {
+          saveLog(req.user.id, 'WhatsApp enviado', `Notificación de compra enviada para orden #${orderId}`);
+        }
+      } catch (error) {
+        // No bloquear la orden si falla WhatsApp
+        console.error('Error al enviar WhatsApp:', error.message);
+        saveLog(req.user.id, 'Error WhatsApp', `Fallo al enviar notificación: ${error.message}`);
+      }
+      
+      res.json({ 
+        message: 'Orden creada',
+        orderId: orderId,
+        whatsappSent: whatsappSent
+      });
     }
   );
+});
+
+// GET orders - obtener órdenes con items parseados
+app.get('/api/orders', auth, (req, res) => {
+  const query = req.user.role === 'admin' 
+    ? 'SELECT o.*, u.username FROM orders o LEFT JOIN users u ON o.user_id=u.id ORDER BY o.created_at DESC'
+    : 'SELECT * FROM orders WHERE user_id=? ORDER BY created_at DESC';
+  
+  const params = req.user.role === 'admin' ? [] : [req.user.id];
+  
+  db.all(query, params, (err, rows) => {
+    if (err) return res.status(500).json({ error: 'Error al obtener órdenes' });
+    
+    // Parsear items de JSON a array
+    const orders = (rows || []).map(order => ({
+      ...order,
+      items: order.items ? JSON.parse(order.items) : []
+    }));
+    
+    res.json(orders);
+  });
 });
 
 // LOGS
@@ -430,10 +509,38 @@ app.post('/api/mp-payment', auth, async (req, res) => {
     console.log('Respuesta MP:', response.status, response.status_detail);
     
     // Guardar la orden en la base de datos
-    db.run('INSERT INTO orders (user_id, total, payment_method) VALUES (?, ?, ?)',
-      [req.user.id, total, 'Mercado Pago - Tarjeta'],
-      (err) => {
-        if (err) console.error('Error saving order:', err);
+    const itemsJson = items && items.length > 0 ? JSON.stringify(items) : null;
+    db.run('INSERT INTO orders (user_id, total, payment_method, items) VALUES (?, ?, ?, ?)',
+      [req.user.id, total, 'Mercado Pago - Tarjeta', itemsJson],
+      async (err) => {
+        if (err) {
+          console.error('Error saving order:', err);
+          return;
+        }
+        
+        // Guardar log con detalles
+        const logDetails = formatPurchaseLog(items || [], total, 'Mercado Pago - Tarjeta');
+        saveLog(req.user.id, 'Compra realizada', logDetails);
+        
+        // Enviar notificación WhatsApp
+        try {
+          const orderData = {
+            orderId: this.lastID,
+            items: items || [],
+            total,
+            paymentMethod: 'Mercado Pago - Tarjeta',
+            username: req.user.username,
+            timestamp: new Date()
+          };
+          
+          const whatsappSent = await sendPurchaseNotification(orderData);
+          if (whatsappSent) {
+            saveLog(req.user.id, 'WhatsApp enviado', `Notificación enviada para orden #${this.lastID}`);
+          }
+        } catch (error) {
+          console.error('Error al enviar WhatsApp:', error.message);
+          saveLog(req.user.id, 'Error WhatsApp', `Fallo al enviar notificación: ${error.message}`);
+        }
       }
     );
     
@@ -497,11 +604,40 @@ app.post('/api/mp-link', auth, async (req, res) => {
     
     if (response.ok) {
       // Guardar la orden en la base de datos
-      db.run('INSERT INTO orders (user_id, total, payment_method) VALUES (?, ?, ?)',
-        [req.user.id, total, 'Mercado Pago - Pref: ' + data.id],
-        (err) => {
-          if (err) console.error('Error saving order:', err);
-          else console.log('Orden guardada exitosamente');
+      const itemsJson = items && items.length > 0 ? JSON.stringify(items) : null;
+      db.run('INSERT INTO orders (user_id, total, payment_method, items) VALUES (?, ?, ?, ?)',
+        [req.user.id, total, 'Mercado Pago - Pref: ' + data.id, itemsJson],
+        async function(err) {
+          if (err) {
+            console.error('Error saving order:', err);
+            return;
+          }
+          
+          console.log('Orden guardada exitosamente');
+          
+          // Guardar log con detalles
+          const logDetails = formatPurchaseLog(items || [], total, 'Mercado Pago - Link');
+          saveLog(req.user.id, 'Compra realizada', logDetails);
+          
+          // Enviar notificación WhatsApp
+          try {
+            const orderData = {
+              orderId: this.lastID,
+              items: items || [],
+              total,
+              paymentMethod: 'Mercado Pago - Link',
+              username: req.user.username,
+              timestamp: new Date()
+            };
+            
+            const whatsappSent = await sendPurchaseNotification(orderData);
+            if (whatsappSent) {
+              saveLog(req.user.id, 'WhatsApp enviado', `Notificación enviada para orden #${this.lastID}`);
+            }
+          } catch (error) {
+            console.error('Error al enviar WhatsApp:', error.message);
+            saveLog(req.user.id, 'Error WhatsApp', `Fallo al enviar notificación: ${error.message}`);
+          }
         }
       );
       
