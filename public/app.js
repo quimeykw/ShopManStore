@@ -1187,6 +1187,17 @@ function formatDNI(e) {
   e.target.value = e.target.value.replace(/\D/g, '');
 }
 
+// Helper para formatear items del carrito para el backend
+function formatCartItems() {
+  return cart.map(item => ({
+    id: item.id,
+    name: item.name,
+    quantity: item.qty,
+    price: item.price,
+    size: item.size || null
+  }));
+}
+
 async function handleMercadoPago() {
   // Verificar autenticación
   if (!token || !user) {
@@ -1205,10 +1216,13 @@ async function handleMercadoPago() {
   mpButton.disabled = true;
   
   try {
+    // Formatear items para el backend
+    const formattedItems = formatCartItems();
+    
     const res = await fetch(API + '/mp-link', {
       method: 'POST',
       headers: {'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token},
-      body: JSON.stringify({items: cart, total})
+      body: JSON.stringify({items: formattedItems, total})
     });
     
     const data = await res.json();
@@ -1641,15 +1655,42 @@ async function loadLogs() {
     });
     const logs = await res.json();
     
-    $('logsList').innerHTML = logs.map(log => `
-      <div class="p-3 bg-gray-50 rounded mb-2">
-        <div class="flex justify-between">
-          <span class="font-bold">${log.username || 'Sistema'}</span>
-          <span class="text-sm text-gray-600">${new Date(log.created_at).toLocaleString()}</span>
+    $('logsList').innerHTML = logs.map(log => {
+      // Determinar el color según el tipo de acción
+      let bgColor = 'bg-gray-50';
+      let icon = '📋';
+      
+      if (log.action === 'Compra realizada') {
+        bgColor = 'bg-green-50 border-l-4 border-green-500';
+        icon = '🛍️';
+      } else if (log.action === 'WhatsApp enviado') {
+        bgColor = 'bg-blue-50 border-l-4 border-blue-500';
+        icon = '📱';
+      } else if (log.action === 'Error WhatsApp') {
+        bgColor = 'bg-red-50 border-l-4 border-red-500';
+        icon = '⚠️';
+      } else if (log.action === 'Login') {
+        icon = '🔐';
+      } else if (log.action === 'Registro') {
+        icon = '👤';
+      }
+      
+      return `
+        <div class="p-3 ${bgColor} rounded mb-2">
+          <div class="flex justify-between items-start">
+            <div class="flex-1">
+              <div class="flex items-center gap-2">
+                <span>${icon}</span>
+                <span class="font-bold">${log.username || 'Sistema'}</span>
+                <span class="text-xs bg-gray-200 px-2 py-1 rounded">${log.action}</span>
+              </div>
+              <p class="text-sm mt-2 text-gray-700">${log.details}</p>
+            </div>
+            <span class="text-xs text-gray-600 whitespace-nowrap ml-2">${new Date(log.created_at).toLocaleString('es-AR')}</span>
+          </div>
         </div>
-        <p class="text-sm">${log.action}: ${log.details}</p>
-      </div>
-    `).join('');
+      `;
+    }).join('');
   } catch (err) {
     console.error(err);
   }
