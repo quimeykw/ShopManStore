@@ -139,11 +139,26 @@
       <h2 class="text-xl font-bold">Carrito</h2>
       <button id="closeCart"><i class="fas fa-times"></i></button>
     </div>
-    <div id="cartItems" class="p-4 overflow-y-auto" style="height: calc(100% - 200px)"></div>
+    <div id="cartItems" class="p-4 overflow-y-auto" style="height: calc(100% - 280px)"></div>
     <div class="p-4 border-t">
-      <div class="flex justify-between mb-3">
-        <span class="font-bold">Total:</span>
-        <span id="cartTotal" class="font-bold">$0</span>
+      <!-- Desglose de precios -->
+      <div class="space-y-2 mb-4">
+        <div class="flex justify-between text-sm">
+          <span>Subtotal:</span>
+          <span id="cartSubtotalDisplay">$0</span>
+        </div>
+        <div class="flex justify-between text-sm text-green-600">
+          <span>Descuento (10%):</span>
+          <span id="cartDiscountDisplay">-$0</span>
+        </div>
+        <div id="shippingInfo" class="flex justify-between text-sm">
+          <span>Envío:</span>
+          <span id="cartShippingDisplay">Estándar</span>
+        </div>
+        <div class="flex justify-between font-bold text-lg border-t pt-2">
+          <span>Total:</span>
+          <span id="cartTotal">$0</span>
+        </div>
       </div>
       <button id="checkoutBtn" class="w-full bg-indigo-600 text-white p-2 rounded min-h-[44px]">Pagar</button>
     </div>

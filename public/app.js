@@ -1107,7 +1107,14 @@ function updateCart() {
   // Envío gratis si es mayor a $80,000
   const freeShipping = totalWithDiscount >= 80000;
   
+  // Actualizar contador del carrito
   $('cartCount').textContent = cart.reduce((sum, item) => sum + item.qty, 0);
+  
+  // Actualizar desglose de precios
+  $('cartSubtotalDisplay').textContent = '$' + formatPrice(subtotal);
+  $('cartDiscountDisplay').textContent = '-$' + formatPrice(discount);
+  $('cartShippingDisplay').textContent = freeShipping ? 'GRATIS 🎉' : 'Estándar';
+  $('cartShippingDisplay').className = freeShipping ? 'text-green-600 font-bold' : '';
   $('cartTotal').textContent = '$' + formatPrice(totalWithDiscount);
   
   // Guardar valores globales para usar en checkout
