@@ -1108,6 +1108,7 @@ function updateCart() {
   const freeShipping = totalWithDiscount >= 80000;
   
   $('cartCount').textContent = cart.reduce((sum, item) => sum + item.qty, 0);
+  $('cartTotal').textContent = '$' + formatPrice(totalWithDiscount);
   
   $('cartItems').innerHTML = cart.map(item => `
     <div class="flex gap-3 mb-3 pb-3 border-b">
