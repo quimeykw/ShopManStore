@@ -1110,6 +1110,12 @@ function updateCart() {
   $('cartCount').textContent = cart.reduce((sum, item) => sum + item.qty, 0);
   $('cartTotal').textContent = '$' + formatPrice(totalWithDiscount);
   
+  // Guardar valores globales para usar en checkout
+  window.cartTotal = totalWithDiscount;
+  window.cartSubtotal = subtotal;
+  window.cartDiscount = discount;
+  window.freeShipping = freeShipping;
+  
   $('cartItems').innerHTML = cart.map(item => `
     <div class="flex gap-3 mb-3 pb-3 border-b">
       <img src="${item.image}" class="w-16 h-16 object-cover rounded">
