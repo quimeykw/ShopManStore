@@ -1669,32 +1669,67 @@ async function loadLogs() {
       // Determinar el color según el tipo de acción
       let bgColor = 'bg-gray-50';
       let icon = '📋';
+      let textColor = 'text-gray-700';
       
-      if (log.action === 'Compra realizada') {
+      // Pagos y compras (VERDE)
+      if (log.action === 'Compra realizada' || log.action === 'Orden creada') {
         bgColor = 'bg-green-50 border-l-4 border-green-500';
-        icon = '🛍️';
-      } else if (log.action === 'WhatsApp enviado') {
+        icon = '💰';
+        textColor = 'text-green-900';
+      } 
+      // Pagos exitosos de Mercado Pago (VERDE)
+      else if (log.action.includes('Pago') && (log.details.includes('exitoso') || log.details.includes('aprobado') || log.details.includes('approved'))) {
+        bgColor = 'bg-green-50 border-l-4 border-green-600';
+        icon = '✅';
+        textColor = 'text-green-900';
+      }
+      // Pagos rechazados o fallidos (ROJO)
+      else if (log.action.includes('Pago') && (log.details.includes('rechazado') || log.details.includes('fallido') || log.details.includes('rejected') || log.details.includes('failed'))) {
+        bgColor = 'bg-red-50 border-l-4 border-red-500';
+        icon = '❌';
+        textColor = 'text-red-900';
+      }
+      // WhatsApp enviado (AZUL)
+      else if (log.action === 'WhatsApp enviado') {
         bgColor = 'bg-blue-50 border-l-4 border-blue-500';
         icon = '📱';
-      } else if (log.action === 'Error WhatsApp') {
+        textColor = 'text-blue-900';
+      } 
+      // Errores de WhatsApp (ROJO)
+      else if (log.action === 'Error WhatsApp') {
         bgColor = 'bg-red-50 border-l-4 border-red-500';
         icon = '⚠️';
-      } else if (log.action === 'Login') {
+        textColor = 'text-red-900';
+      } 
+      // Login (AZUL)
+      else if (log.action === 'Login') {
+        bgColor = 'bg-blue-50 border-l-4 border-blue-400';
         icon = '🔐';
-      } else if (log.action === 'Registro') {
+        textColor = 'text-blue-900';
+      } 
+      // Registro (MORADO)
+      else if (log.action === 'Registro') {
+        bgColor = 'bg-purple-50 border-l-4 border-purple-500';
         icon = '👤';
+        textColor = 'text-purple-900';
+      }
+      // Errores generales (ROJO)
+      else if (log.action.includes('Error') || log.details.includes('error') || log.details.includes('Error')) {
+        bgColor = 'bg-red-50 border-l-4 border-red-500';
+        icon = '🚨';
+        textColor = 'text-red-900';
       }
       
       return `
-        <div class="p-3 ${bgColor} rounded mb-2">
+        <div class="p-3 ${bgColor} rounded mb-2 shadow-sm">
           <div class="flex justify-between items-start">
             <div class="flex-1">
               <div class="flex items-center gap-2">
-                <span>${icon}</span>
-                <span class="font-bold">${log.username || 'Sistema'}</span>
-                <span class="text-xs bg-gray-200 px-2 py-1 rounded">${log.action}</span>
+                <span class="text-2xl">${icon}</span>
+                <span class="font-bold ${textColor}">${log.username || 'Sistema'}</span>
+                <span class="text-xs bg-white px-2 py-1 rounded font-semibold ${textColor}">${log.action}</span>
               </div>
-              <p class="text-sm mt-2 text-gray-700">${log.details}</p>
+              <p class="text-sm mt-2 ${textColor}">${log.details}</p>
             </div>
             <span class="text-xs text-gray-600 whitespace-nowrap ml-2">${new Date(log.created_at).toLocaleString('es-AR')}</span>
           </div>
