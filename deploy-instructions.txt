@@ -1,0 +1,86 @@
+═══════════════════════════════════════════════════════════════
+  CÓMO PUBLICAR TU TIENDA SHOPMANSTORE EN INTERNET - PASO A PASO
+═══════════════════════════════════════════════════════════════
+
+🎯 OPCIÓN MÁS FÁCIL: RAILWAY (Recomendado)
+
+1. Crea una cuenta en GitHub (si no tienes):
+   → https://github.com/signup
+
+2. Sube tu código a GitHub:
+   
+   a) En GitHub, crea un nuevo repositorio llamado "shopmanstore"
+   
+   b) En tu terminal, ejecuta estos comandos:
+   
+      git init
+      git add .
+      git commit -m "Mi tienda ShopManStore"
+      git branch -M main
+      git remote add origin https://github.com/TU_USUARIO/shopmanstore.git
+      git push -u origin main
+   
+   (Reemplaza TU_USUARIO con tu nombre de usuario de GitHub)
+
+3. Despliega en Railway:
+   
+   a) Ve a https://railway.app
+   b) Haz clic en "Start a New Project"
+   c) Selecciona "Deploy from GitHub repo"
+   d) Autoriza Railway a acceder a GitHub
+   e) Selecciona tu repositorio "shopmanstore"
+   f) Railway comenzará a desplegar automáticamente
+
+4. Configura las variables de entorno:
+   
+   a) En Railway, haz clic en tu proyecto
+   b) Ve a la pestaña "Variables"
+   c) Agrega estas variables:
+      
+      MP_TOKEN = APP_USR-5802293204482723-111823-41d8e3354a2e15c8dbc4802b59524b0d-3001373888
+      JWT_SECRET = shopmanstore_secret_key_2024
+
+5. Obtén tu URL:
+   
+   a) En Railway, ve a "Settings"
+   b) En "Domains", haz clic en "Generate Domain"
+   c) Railway te dará una URL como: shopmanstore.up.railway.app
+
+¡LISTO! Tu tienda ya está online 🎉
+
+═══════════════════════════════════════════════════════════════
+
+🌐 ALTERNATIVA: RENDER.COM
+
+1. Ve a https://render.com y regístrate con GitHub
+
+2. Crea un "Web Service":
+   - New → Web Service
+   - Conecta tu repositorio de GitHub
+   - Build Command: npm install
+   - Start Command: npm start
+
+3. Agrega las variables de entorno en la sección "Environment"
+
+4. Haz clic en "Create Web Service"
+
+Tu URL será algo como: shopmanstore.onrender.com
+
+═══════════════════════════════════════════════════════════════
+
+📝 NOTAS IMPORTANTES:
+
+✅ Tu tienda estará disponible 24/7
+✅ Los planes gratuitos pueden tardar unos segundos en "despertar"
+✅ Cambia la contraseña del admin después de desplegar
+✅ La base de datos SQLite funciona, pero se reinicia en algunos servicios
+
+═══════════════════════════════════════════════════════════════
+
+¿NECESITAS AYUDA?
+
+- Lee el archivo DEPLOY.md para más detalles
+- Documentación Railway: https://docs.railway.app
+- Documentación Render: https://render.com/docs
+
+═══════════════════════════════════════════════════════════════

@@ -1,0 +1,321 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>ShopManStore</title>
+  <link rel="icon" type="image/png" href="logo.png">
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <style>
+    /* Drag and drop styles */
+    [draggable="true"] {
+      transition: opacity 0.2s ease;
+    }
+    
+    .drag-over {
+      border: 2px dashed #4F46E5 !important;
+      background-color: rgba(79, 70, 229, 0.1) !important;
+      transform: scale(1.05);
+      transition: all 0.2s ease;
+    }
+    
+    /* Smooth transitions for image grid */
+    #imagePreview > div {
+      transition: transform 0.2s ease;
+    }
+    
+    #imagePreview > div:hover {
+      transform: translateY(-2px);
+    }
+    
+    /* Logo styles */
+    .logo-container {
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+    }
+    
+    .logo-image {
+      width: 80px;
+      height: 80px;
+      object-fit: contain;
+      border-radius: 50%;
+      transition: transform 0.2s ease;
+      cursor: pointer;
+    }
+    
+    .logo-image:hover {
+      transform: scale(1.05);
+    }
+    
+    @media (max-width: 640px) {
+      .logo-image {
+        width: 60px;
+        height: 60px;
+      }
+    }
+  </style>
+</head>
+<body class="bg-gray-50">
+  
+  <!-- Header -->
+  <header class="bg-white shadow">
+    <div class="container mx-auto px-4 py-3 sm:py-4">
+      <div class="flex flex-col sm:flex-row justify-between items-center gap-3">
+        <div class="logo-container">
+          <img src="logo.png" alt="ShopManStore logo" class="logo-image">
+          <h1 class="text-xl sm:text-2xl font-bold text-indigo-600">ShopManStore</h1>
+        </div>
+        <div class="flex flex-wrap gap-2 sm:gap-3 justify-center sm:justify-end items-center">
+          <span id="userInfo" class="hidden text-sm sm:text-base text-gray-600"></span>
+          <button id="adminBtn" class="hidden bg-gray-800 text-white px-4 py-2 rounded text-sm sm:text-base min-h-[44px]">
+            <i class="fas fa-cog mr-1 sm:mr-2"></i><span class="hidden sm:inline">Admin</span><span class="sm:hidden">Admin</span>
+          </button>
+          <button id="cartBtn" class="bg-indigo-600 text-white px-4 py-2 rounded text-sm sm:text-base min-h-[44px]">
+            <i class="fas fa-cart-shopping mr-1 sm:mr-2"></i><span class="hidden sm:inline">Carrito</span> (<span id="cartCount">0</span>)
+          </button>
+          <button id="logoutBtn" class="hidden bg-red-600 text-white px-4 py-2 rounded text-sm sm:text-base min-h-[44px]">Salir</button>
+        </div>
+      </div>
+    </div>
+  </header>
+
+  <!-- Login Modal -->
+  <div id="loginModal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+    <div class="bg-white p-6 rounded-lg w-full max-w-md mx-4">
+      <h2 class="text-xl font-bold mb-4">Iniciar Sesión</h2>
+      <form id="loginForm" onsubmit="event.preventDefault(); handleLogin();">
+        <input type="text" id="loginUser" placeholder="Usuario" autocomplete="username" class="w-full p-2 border rounded mb-3" required>
+        <input type="password" id="loginPass" placeholder="Contraseña" autocomplete="current-password" class="w-full p-2 border rounded mb-2" required>
+        <div class="text-right mb-3">
+          <button type="button" id="showForgotPassword" class="text-sm text-indigo-600 hover:text-indigo-800 underline">
+            ¿Olvidaste tu contraseña?
+          </button>
+        </div>
+        <button type="submit" id="loginSubmit" class="w-full bg-indigo-600 text-white p-2 rounded mb-2 min-h-[44px]">Entrar</button>
+        <button type="button" id="showRegister" class="w-full bg-gray-300 p-2 rounded min-h-[44px]">Registrarse</button>
+        <p id="loginError" class="text-red-600 text-sm mt-2 hidden"></p>
+      </form>
+    </div>
+  </div>
+
+  <!-- Register Modal -->
+  <div id="registerModal" class="hidden fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+    <div class="bg-white p-6 rounded-lg w-full max-w-md mx-4">
+      <h2 class="text-xl font-bold mb-4">Registrarse</h2>
+      <form id="registerForm" onsubmit="event.preventDefault(); handleRegister();">
+        <input type="text" id="regUser" placeholder="Usuario" autocomplete="username" class="w-full p-2 border rounded mb-3" required>
+        <input type="email" id="regEmail" placeholder="Email" autocomplete="email" class="w-full p-2 border rounded mb-3" required>
+        <input type="password" id="regPass" placeholder="Contraseña" autocomplete="new-password" class="w-full p-2 border rounded mb-3" required>
+        <button type="submit" id="registerSubmit" class="w-full bg-indigo-600 text-white p-2 rounded mb-2 min-h-[44px]">Registrar</button>
+        <button type="button" id="showLogin" class="w-full bg-gray-300 p-2 rounded min-h-[44px]">Ya tengo cuenta</button>
+        <p id="regError" class="text-red-600 text-sm mt-2 hidden"></p>
+      </form>
+    </div>
+  </div>
+
+  <!-- Forgot Password Modal -->
+  <div id="forgotPasswordModal" class="hidden fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+    <div class="bg-white p-6 rounded-lg w-full max-w-md mx-4">
+      <h2 class="text-xl font-bold mb-4">Recuperar Contraseña</h2>
+      <p class="text-sm text-gray-600 mb-4">Ingresa tu nombre de usuario o email para recuperar tu contraseña.</p>
+      <input type="text" id="forgotUser" placeholder="Usuario o Email" class="w-full p-2 border rounded mb-3">
+      <button id="forgotPasswordSubmit" class="w-full bg-indigo-600 text-white p-2 rounded mb-2 min-h-[44px]">Recuperar Contraseña</button>
+      <button id="cancelForgotPassword" class="w-full bg-gray-300 p-2 rounded min-h-[44px]">Cancelar</button>
+      <p id="forgotError" class="text-red-600 text-sm mt-2 hidden"></p>
+      <p id="forgotSuccess" class="text-green-600 text-sm mt-2 hidden"></p>
+    </div>
+  </div>
+
+  <!-- Products -->
+  <main class="container mx-auto px-4 py-8">
+    <div id="productsGrid" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4"></div>
+  </main>
+
+  <!-- Cart -->
+  <div id="cartSidebar" class="fixed right-0 top-0 h-full w-full sm:w-96 bg-white shadow-lg transform translate-x-full transition-transform z-40">
+    <div class="p-4 border-b flex justify-between">
+      <h2 class="text-xl font-bold">Carrito</h2>
+      <button id="closeCart"><i class="fas fa-times"></i></button>
+    </div>
+    <div id="cartItems" class="p-4 overflow-y-auto" style="height: calc(100% - 200px)"></div>
+    <div class="p-4 border-t">
+      <div class="flex justify-between mb-3">
+        <span class="font-bold">Total:</span>
+        <span id="cartTotal" class="font-bold">$0</span>
+      </div>
+      <button id="checkoutBtn" class="w-full bg-indigo-600 text-white p-2 rounded min-h-[44px]">Pagar</button>
+    </div>
+  </div>
+
+  <!-- Admin Panel -->
+  <div id="adminPanel" class="hidden fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+    <div class="bg-white p-6 rounded-lg w-full max-w-4xl max-h-screen overflow-y-auto">
+      <div class="flex justify-between mb-4">
+        <h2 class="text-2xl font-bold">Panel Admin</h2>
+        <button id="closeAdmin"><i class="fas fa-times text-xl"></i></button>
+      </div>
+      
+      <div class="mb-4">
+        <button id="tabProducts" class="px-4 py-2 bg-indigo-600 text-white rounded mr-2">Productos</button>
+        <button id="tabUsers" class="px-4 py-2 bg-gray-300 rounded mr-2">Usuarios</button>
+        <button id="tabLogs" class="px-4 py-2 bg-gray-300 rounded">Logs</button>
+      </div>
+
+      <div id="sectionProducts">
+        <button id="addProductBtn" class="bg-green-600 text-white px-4 py-2 rounded mb-4">
+          <i class="fas fa-plus mr-2"></i>Agregar
+        </button>
+        <div id="productsList"></div>
+      </div>
+
+      <div id="sectionUsers" class="hidden">
+        <div id="usersList"></div>
+      </div>
+
+      <div id="sectionLogs" class="hidden">
+        <div id="logsList"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Product Modal -->
+  <div id="productModal" class="hidden fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 overflow-y-auto">
+    <div class="bg-white p-6 rounded-lg w-full max-w-md mx-4 my-8">
+      <h2 id="productModalTitle" class="text-xl font-bold mb-4">Producto</h2>
+      <input type="hidden" id="productId">
+      <input type="text" id="productName" placeholder="Nombre" class="w-full p-2 border rounded mb-3">
+      <textarea id="productDesc" placeholder="Descripción" class="w-full p-2 border rounded mb-3" rows="3"></textarea>
+      <input type="number" id="productPrice" placeholder="Precio" class="w-full p-2 border rounded mb-3" step="0.01">
+      
+      <!-- Talles disponibles -->
+      <label class="block text-sm font-bold mb-2">Talles disponibles (números):</label>
+      <input type="text" id="productSizes" placeholder="Ej: 36, 38, 40, 42, 44" class="w-full p-2 border rounded mb-1">
+      <p class="text-xs text-gray-500 mb-3">Separa los talles con comas</p>
+      
+      <!-- Stock disponible -->
+      <input type="number" id="productStock" placeholder="Cantidad disponible" class="w-full p-2 border rounded mb-3" min="0">
+      
+      <label class="block text-sm font-bold mb-2">Imágenes del producto (máx. 10):</label>
+      <input type="file" id="productImages" accept="image/*" multiple class="w-full p-2 border rounded mb-3">
+      
+      <!-- Progress Indicator Container -->
+      <div id="uploadProgress" class="hidden"></div>
+      
+      <div id="imagePreview" class="grid grid-cols-3 gap-2 mb-3"></div>
+      <button id="saveProduct" class="w-full bg-indigo-600 text-white p-2 rounded mb-2 min-h-[44px]">Guardar</button>
+      <button id="cancelProduct" class="w-full bg-gray-300 p-2 rounded min-h-[44px]">Cancelar</button>
+    </div>
+  </div>
+
+  <!-- Image Zoom Modal -->
+  <div id="imageZoomModal" class="hidden fixed inset-0 bg-black bg-opacity-90 flex items-center justify-center z-50">
+    <div class="relative w-full h-full flex items-center justify-center p-4">
+      <!-- Close button -->
+      <button onclick="closeImageZoom()" class="absolute top-4 right-4 text-white text-3xl hover:text-gray-300 z-10">
+        <i class="fas fa-times"></i>
+      </button>
+      
+      <!-- Previous button -->
+      <button id="zoomPrevBtn" onclick="zoomPrevImage(); event.stopPropagation();" 
+              class="absolute left-4 top-1/2 transform -translate-y-1/2 bg-white bg-opacity-20 hover:bg-opacity-30 text-white rounded-full w-12 h-12 flex items-center justify-center z-10">
+        <i class="fas fa-chevron-left text-2xl"></i>
+      </button>
+      
+      <!-- Image -->
+      <div class="flex flex-col items-center justify-center max-w-6xl max-h-screen" onclick="event.stopPropagation()">
+        <img id="zoomedImage" src="" class="max-w-full max-h-[85vh] object-contain">
+        
+        <!-- Image counter and indicators -->
+        <div id="zoomIndicators" class="mt-4 flex flex-col items-center gap-2">
+          <div id="zoomCounter" class="text-white text-sm"></div>
+          <div id="zoomDots" class="flex gap-2"></div>
+        </div>
+      </div>
+      
+      <!-- Next button -->
+      <button id="zoomNextBtn" onclick="zoomNextImage(); event.stopPropagation();" 
+              class="absolute right-4 top-1/2 transform -translate-y-1/2 bg-white bg-opacity-20 hover:bg-opacity-30 text-white rounded-full w-12 h-12 flex items-center justify-center z-10">
+        <i class="fas fa-chevron-right text-2xl"></i>
+      </button>
+    </div>
+  </div>
+
+  <!-- Payment Modal -->
+  <div id="paymentModal" class="hidden fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+    <div class="bg-white p-6 rounded-lg w-full max-w-md mx-4">
+      <h2 class="text-xl font-bold mb-4">Selecciona tu método de pago</h2>
+      <p class="mb-4">Total: <span id="paymentTotal" class="font-bold text-2xl text-indigo-600"></span></p>
+      
+      <button id="payCard" class="w-full bg-blue-600 hover:bg-blue-700 text-white p-3 rounded mb-3 min-h-[44px] transition">
+        <i class="fas fa-credit-card mr-2"></i>Pagar con Tarjeta
+      </button>
+      
+      <button id="payMP" class="w-full bg-cyan-500 hover:bg-cyan-600 text-white p-3 rounded mb-3 min-h-[44px] transition">
+        <i class="fas fa-qrcode mr-2"></i>Mercado Pago
+      </button>
+      
+      <button id="payWA" class="w-full bg-green-600 hover:bg-green-700 text-white p-3 rounded mb-3 min-h-[44px] transition">
+        <i class="fab fa-whatsapp mr-2"></i>Pagar por WhatsApp
+      </button>
+      
+      <button id="cancelPayment" class="w-full bg-gray-300 hover:bg-gray-400 p-2 rounded min-h-[44px] transition">
+        Cancelar
+      </button>
+      
+      <p class="text-xs text-gray-500 mt-3 text-center">
+        <i class="fas fa-shield-alt mr-1"></i>Tus datos están protegidos
+      </p>
+    </div>
+  </div>
+
+  <!-- Card Payment Form -->
+  <div id="cardModal" class="hidden fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+    <div class="bg-white p-6 rounded-lg w-full max-w-md mx-4">
+      <h2 class="text-xl font-bold mb-4">Pago con Tarjeta</h2>
+      <p class="mb-4">Total: <span id="cardTotal" class="font-bold text-xl text-indigo-600"></span></p>
+      
+      <form id="cardForm">
+        <div class="mb-3">
+          <label class="block text-sm font-bold mb-1">Número de Tarjeta</label>
+          <input type="text" id="cardNumber" placeholder="1234 5678 9012 3456" maxlength="19" 
+                 class="w-full p-2 border rounded" required>
+        </div>
+        
+        <div class="mb-3">
+          <label class="block text-sm font-bold mb-1">Nombre del Titular</label>
+          <input type="text" id="cardName" placeholder="JUAN PEREZ" 
+                 class="w-full p-2 border rounded" required>
+        </div>
+        
+        <div class="flex gap-3 mb-3">
+          <div class="flex-1">
+            <label class="block text-sm font-bold mb-1">Vencimiento</label>
+            <input type="text" id="cardExpiry" placeholder="MM/AA" maxlength="5" 
+                   class="w-full p-2 border rounded" required>
+          </div>
+          <div class="w-24">
+            <label class="block text-sm font-bold mb-1">CVV</label>
+            <input type="text" id="cardCVV" placeholder="123" maxlength="4" 
+                   class="w-full p-2 border rounded" required>
+          </div>
+        </div>
+        
+        <div class="mb-4">
+          <label class="block text-sm font-bold mb-1">DNI del Titular</label>
+          <input type="text" id="cardDNI" placeholder="12345678" 
+                 class="w-full p-2 border rounded" required>
+        </div>
+        
+        <button type="submit" id="processCard" class="w-full bg-green-600 text-white p-3 rounded mb-2">
+          <i class="fas fa-lock mr-2"></i>Procesar Pago
+        </button>
+        <button type="button" id="cancelCard" class="w-full bg-gray-300 p-2 rounded">Cancelar</button>
+      </form>
+    </div>
+  </div>
+
+  <script src="app.js"></script>
+</body>
+</html>

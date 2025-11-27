@@ -1,0 +1,83 @@
+═══════════════════════════════════════════════════════════════
+  SOLUCIÓN AL ERROR: ENOENT public/index.html en Render
+═══════════════════════════════════════════════════════════════
+
+PROBLEMA:
+La carpeta "public" con index.html y app.js NO se subió a GitHub.
+Por eso Render no puede encontrar los archivos.
+
+═══════════════════════════════════════════════════════════════
+
+SOLUCIÓN RÁPIDA (Sin instalar nada):
+
+1. Ve a tu repositorio en GitHub:
+   https://github.com/TU_USUARIO/shopmanstore
+
+2. Verifica si existe la carpeta "public":
+   - Si NO existe → Continúa con el paso 3
+   - Si existe pero está vacía → Continúa con el paso 3
+
+3. Haz clic en "Add file" → "Upload files"
+
+4. Arrastra estos archivos desde tu computadora:
+   
+   📁 public/
+      📄 index.html
+      📄 app.js
+
+5. Escribe el mensaje: "Add public folder"
+
+6. Haz clic en "Commit changes"
+
+7. Espera 2-3 minutos y Render redesplegará automáticamente
+
+8. ¡Tu sitio funcionará!
+
+═══════════════════════════════════════════════════════════════
+
+VERIFICACIÓN:
+
+Después de subir, verifica en GitHub que veas:
+
+https://github.com/TU_USUARIO/shopmanstore/tree/main/public
+
+Deberías ver:
+✅ index.html (9 KB)
+✅ app.js (16 KB)
+
+═══════════════════════════════════════════════════════════════
+
+ALTERNATIVA: Usar GitHub Desktop
+
+1. Descarga: https://desktop.github.com
+2. Instala y abre
+3. File → Add Local Repository
+4. Selecciona tu carpeta: C:\Users\Usuario\Desktop\programing
+5. Publish repository
+6. ¡Listo! Todos los archivos se subirán automáticamente
+
+═══════════════════════════════════════════════════════════════
+
+ARCHIVOS QUE DEBEN ESTAR EN GITHUB:
+
+✅ public/index.html
+✅ public/app.js
+✅ server.js
+✅ package.json
+✅ .gitignore
+✅ vercel.json
+✅ render.yaml
+✅ railway.json
+
+❌ NO subir:
+❌ node_modules/
+❌ store.db
+❌ .env
+
+═══════════════════════════════════════════════════════════════
+
+¿NECESITAS MÁS AYUDA?
+
+Lee el archivo: SUBIR-A-GITHUB.md
+
+═══════════════════════════════════════════════════════════════

@@ -1,0 +1,20 @@
+services:
+  - type: web
+    name: shopmanstore
+    env: node
+    buildCommand: npm install
+    startCommand: npm start
+    envVars:
+      - key: MP_TOKEN
+        value: APP_USR-5802293204482723-111823-41d8e3354a2e15c8dbc4802b59524b0d-3001373888
+      - key: NODE_ENV
+        value: production
+      - key: DATABASE_URL
+        fromDatabase:
+          name: shopmanstore-db
+          property: connectionString
+
+databases:
+  - name: shopmanstore-db
+    databaseName: shopmanstore
+    user: shopmanstore
