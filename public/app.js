@@ -1212,11 +1212,12 @@ function formatDNI(e) {
 
 // Helper para formatear items del carrito para el backend
 function formatCartItems() {
+  // Aplicar 10% de descuento a cada item
   return cart.map(item => ({
     id: item.id,
     name: item.name,
     quantity: item.qty,
-    price: item.price,
+    price: Math.round(item.price * 0.9), // Precio con 10% de descuento
     size: item.size || null
   }));
 }
