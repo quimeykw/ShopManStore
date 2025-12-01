@@ -285,7 +285,7 @@ app.get('/api/products', (req, res) => {
 });
 
 app.post('/api/products', auth, isAdmin, (req, res) => {
-  const { name, description, price, image, images, sizes, stock } = req.body;
+  const { name, description, price, image, images, sizes, colors, stock } = req.body;
   
   // Validar imágenes
   let imageArray = images || (image ? [image] : []);
@@ -307,10 +307,11 @@ app.post('/api/products', auth, isAdmin, (req, res) => {
   }
   
   const sizesStr = Array.isArray(sizes) ? sizes.join(',') : sizes || '';
+  const colorsStr = Array.isArray(colors) ? colors.join(',') : colors || '';
   const imagesJson = JSON.stringify(imageArray);
   
-  db.run('INSERT INTO products (name, description, price, image, images, sizes, stock) VALUES (?, ?, ?, ?, ?, ?, ?)',
-    [name, description, price, imageArray[0] || null, imagesJson, sizesStr, stock || 0],
+  db.run('INSERT INTO products (name, description, price, image, images, sizes, colors, stock) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
+    [name, description, price, imageArray[0] || null, imagesJson, sizesStr, colorsStr, stock || 0],
     function(err) {
       if (err) {
         console.error('Error creating product:', err);
@@ -322,7 +323,7 @@ app.post('/api/products', auth, isAdmin, (req, res) => {
 });
 
 app.put('/api/products/:id', auth, isAdmin, (req, res) => {
-  const { name, description, price, image, images, sizes, stock } = req.body;
+  const { name, description, price, image, images, sizes, colors, stock } = req.body;
   
   // Validar imágenes
   let imageArray = images || (image ? [image] : []);
@@ -344,10 +345,11 @@ app.put('/api/products/:id', auth, isAdmin, (req, res) => {
   }
   
   const sizesStr = Array.isArray(sizes) ? sizes.join(',') : sizes || '';
+  const colorsStr = Array.isArray(colors) ? colors.join(',') : colors || '';
   const imagesJson = JSON.stringify(imageArray);
   
-  db.run('UPDATE products SET name=?, description=?, price=?, image=?, images=?, sizes=?, stock=? WHERE id=?',
-    [name, description, price, imageArray[0] || null, imagesJson, sizesStr, stock || 0, req.params.id],
+  db.run('UPDATE products SET name=?, description=?, price=?, image=?, images=?, sizes=?, colors=?, stock=? WHERE id=?',
+    [name, description, price, imageArray[0] || null, imagesJson, sizesStr, colorsStr, stock || 0, req.params.id],
     (err) => {
       if (err) {
         console.error('Error updating product:', err);

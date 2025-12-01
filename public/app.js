@@ -1023,6 +1023,7 @@ function renderProducts() {
   const grid = $('productsGrid');
   grid.innerHTML = products.map(p => {
     const sizes = p.sizes ? p.sizes.split(',').map(s => s.trim()).filter(s => s) : [];
+    const colors = p.colors ? p.colors.split(',').map(c => c.trim()).filter(c => c) : [];
     const stock = p.stock || 0;
     const outOfStock = stock === 0;
     
@@ -1042,6 +1043,16 @@ function renderProducts() {
           <select id="size-${p.id}" class="w-full p-1 border rounded text-sm">
             <option value="">Elegir talle</option>
             ${sizes.map(s => `<option value="${s}">${s}</option>`).join('')}
+          </select>
+        </div>
+      ` : ''}
+      
+      ${colors.length > 0 ? `
+        <div class="mb-2">
+          <label class="text-xs text-gray-600 block mb-1"><i class="fas fa-palette mr-1"></i>Selecciona color:</label>
+          <select id="color-${p.id}" class="w-full p-1 border rounded text-sm">
+            <option value="">Elegir color</option>
+            ${colors.map(c => `<option value="${c}">${c}</option>`).join('')}
           </select>
         </div>
       ` : ''}
@@ -1078,7 +1089,21 @@ function addToCart(productId) {
     }
   }
   
-  const existing = cart.find(item => item.id === productId && item.size === selectedSize);
+  // Verificar si tiene colores y si se seleccionó uno
+  const colors = product.colors ? product.colors.split(',').map(c => c.trim()).filter(c => c) : [];
+  let selectedColor = '';
+  
+  if (colors.length > 0) {
+    const colorSelect = document.getElementById(`color-${productId}`);
+    selectedColor = colorSelect ? colorSelect.value : '';
+    
+    if (!selectedColor) {
+      alert('Por favor selecciona un color');
+      return;
+    }
+  }
+  
+  const existing = cart.find(item => item.id === productId && item.size === selectedSize && item.color === selectedColor);
   if (existing) {
     existing.qty++;
   } else {
@@ -1086,7 +1111,8 @@ function addToCart(productId) {
       id: productId, 
       name: product.name, 
       price: product.price, 
-      image: product.image, 
+      image: product.image,
+      color: selectedColor, 
       size: selectedSize,
       qty: 1
     });
@@ -1129,11 +1155,12 @@ function updateCart() {
       <div class="flex-1">
         <p class="font-bold">${item.name}</p>
         ${item.size ? `<p class="text-xs text-gray-500">Talle: ${item.size}</p>` : ''}
-        <p class="text-sm text-gray-600">$${formatPrice(item.price)}</p>
-        <div class="flex gap-2 mt-1">
-          <button onclick="changeQty(${item.id}, '${item.size}', -1)" class="bg-gray-200 px-2 rounded">-</button>
-          <span>${item.qty}</span>
-          <button onclick="changeQty(${item.id}, '${item.size}', 1)" class="bg-gray-200 px-2 rounded">+</button>
+        ${item.color ? `<p class="text-xs text-gray-500">Color: ${item.color}</p>` : ''}
+        <p class="text-sm text-gray-600">$${formatPrice(item.price)} c/u</p>
+        <div class="flex gap-2 mt-1 items-center">
+          <button onclick="changeQty(${item.id}, '${item.size}', '${item.color || ''}', -1)" class="bg-gray-200 px-2 py-1 rounded hover:bg-gray-300 transition">-</button>
+          <span class="px-2 font-semibold">${item.qty}</span>
+          <button onclick="changeQty(${item.id}, '${item.size}', '${item.color || ''}', 1)" class="bg-gray-200 px-2 py-1 rounded hover:bg-gray-300 transition">+</button>
         </div>
       </div>
       <span class="font-bold">$${formatPrice(item.price * item.qty)}</span>
@@ -1143,13 +1170,13 @@ function updateCart() {
 
 // 4. REEMPLAZA la función changeQty() con esta:
 
-function changeQty(productId, size, delta) {
-  const item = cart.find(i => i.id === productId && i.size === size);
+function changeQty(productId, size, color, delta) {
+  const item = cart.find(i => i.id === productId && i.size === size && i.color === color);
   if (!item) return;
   
   item.qty += delta;
   if (item.qty <= 0) {
-    cart = cart.filter(i => !(i.id === productId && i.size === size));
+    cart = cart.filter(i => !(i.id === productId && i.size === size && i.color === color));
   }
   
   updateCart();
@@ -1218,7 +1245,8 @@ function formatCartItems() {
     name: item.name,
     quantity: item.qty,
     price: Math.round(item.price * 0.9), // Precio con 10% de descuento
-    size: item.size || null
+    size: item.size || null,
+    color: item.color || null
   }));
 }
 
@@ -1387,6 +1415,7 @@ function openProductModal(productId = null) {
     $('productPrice').value = p.price;
     $('productStock').value = p.stock || 0;
     $('productSizes').value = p.sizes || '';
+    $('productColors').value = p.colors || '';
     
     // Cargar imágenes existentes usando ImageUploadManager
     const existingImages = getProductImages(p);
@@ -1405,6 +1434,7 @@ function openProductModal(productId = null) {
     $('productPrice').value = '';
     $('productStock').value = '0';
     $('productSizes').value = '';
+    $('productColors').value = '';
     imageManager.clear();
     currentImages = [];
   }
@@ -1435,6 +1465,10 @@ async function saveProduct() {
   const sizesInput = $('productSizes').value.trim();
   const sizes = sizesInput ? sizesInput.split(',').map(s => s.trim()).filter(s => s) : [];
   
+  // Obtener colores ingresados (limpiar espacios)
+  const colorsInput = $('productColors').value.trim();
+  const colors = colorsInput ? colorsInput.split(',').map(c => c.trim()).filter(c => c) : [];
+  
   // Get images from ImageUploadManager
   const images = imageManager ? imageManager.getImages() : currentImages;
   
@@ -1464,7 +1498,8 @@ async function saveProduct() {
         price, 
         images: images,
         image: images[0], // Mantener compatibilidad
-        sizes, 
+        sizes,
+        colors,
         stock
       })
     });

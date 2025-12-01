@@ -1,24 +1,37 @@
 # ✅ Cambios Subidos a GitHub
 
-## 📦 Commit Realizado
+## 📦 Commits Realizados
 
 **Fecha:** 2024-11-26
 **Branch:** main
 **Commits:**
 1. `7bd85b5` - feat: Agregar desglose completo de precios en el carrito
 2. `2b58d3c` - Merge: Integrar cambios remotos con arreglo del carrito
+3. `6ba2f41` - feat: Aplicar descuento del 10% en Mercado Pago ⭐ NUEVO
 
 ## 📝 Archivos Subidos
 
-### Archivos Modificados (2):
+### Commit 1 y 2: Desglose del Carrito
+
+**Archivos Modificados:**
 - ✅ `public/app.js` - Función updateCart() con desglose completo
 - ✅ `public/index.html` - Estructura HTML del desglose de precios
 
-### Archivos Nuevos (4):
+**Archivos Nuevos:**
 - ✅ `ARREGLO-TOTAL-CARRITO.md` - Documentación técnica del arreglo
 - ✅ `RESUMEN-ARREGLO-CARRITO.md` - Resumen ejecutivo
 - ✅ `test-cart-total.js` - Tests de cálculo del carrito
 - ✅ `verify-cart-fix.js` - Script de verificación
+
+### Commit 3: Descuento en Mercado Pago ⭐
+
+**Archivos Modificados:**
+- ✅ `public/app.js` - Función formatCartItems() con descuento aplicado
+
+**Archivos Nuevos:**
+- ✅ `ARREGLO-DESCUENTO-MERCADOPAGO.md` - Documentación del descuento
+- ✅ `test-mercadopago-discount.js` - Tests de verificación (4/4 pasados)
+- ✅ `SUBIDO-A-GITHUB.md` - Este documento
 
 ## 🎯 Cambios Implementados
 
@@ -50,7 +63,7 @@ Total:           $40,500
 
 **URL:** https://github.com/quimeykw/ShopManStore.git
 **Branch:** main
-**Último commit:** 2b58d3c
+**Último commit:** 6ba2f41
 
 ## 📊 Estadísticas
 

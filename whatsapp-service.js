@@ -39,9 +39,11 @@ function formatPurchaseMessage(orderData) {
   
   // Listar productos
   items.forEach(item => {
-    const size = item.size ? ` (${item.size})` : '';
+    const size = item.size ? ` Talle: ${item.size}` : '';
+    const color = item.color ? ` Color: ${item.color}` : '';
+    const details = (size || color) ? ` (${size}${size && color ? ',' : ''}${color})` : '';
     const priceFormatted = formatPrice(item.price * item.quantity);
-    message += `• ${item.name}${size} x${item.quantity} - $${priceFormatted}\n`;
+    message += `• ${item.name}${details} x${item.quantity} - $${priceFormatted}\n`;
   });
   
   message += `\n💰 *Total: $${formatPrice(total)}*\n`;
