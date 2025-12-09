@@ -135,11 +135,19 @@ async function sendPasswordResetEmail(user, resetToken) {
   };
 
   try {
-    await transporter.sendMail(mailOptions);
-    console.log(`✓ Email de recuperación enviado a ${user.email}`);
+    console.log(`📧 Intentando enviar email a ${user.email}...`);
+    const info = await transporter.sendMail(mailOptions);
+    console.log(`✓ Email enviado exitosamente a ${user.email}`);
+    console.log(`  Message ID: ${info.messageId}`);
+    console.log(`  Response: ${info.response}`);
+    console.log(`  Usuario: ${user.username}`);
+    console.log(`  Token generado: ${resetToken.substring(0, 10)}...`);
     return true;
   } catch (error) {
-    console.error('✗ Error al enviar email:', error.message);
+    console.error(`✗ Error al enviar email a ${user.email}`);
+    console.error(`  Error: ${error.message}`);
+    if (error.code) console.error(`  Código: ${error.code}`);
+    if (error.command) console.error(`  Comando: ${error.command}`);
     return false;
   }
 }

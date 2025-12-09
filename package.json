@@ -6,7 +6,9 @@
   "scripts": {
     "start": "node server.js",
     "test": "jest --verbose",
-    "test:watch": "jest --watch"
+    "test:watch": "jest --watch",
+    "test:email": "node test-email-recovery.js",
+    "test:whatsapp": "node test-purchase-notification.js"
   },
   "dependencies": {
     "bcryptjs": "^2.4.3",

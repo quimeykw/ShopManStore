@@ -286,3 +286,90 @@ Optimizaciones (Auto Minify, Brotli, Caché)
 
 **Última actualización:** Diciembre 2024
 **Nuevos documentos:** 2 (Recuperación de contraseña + Cloudflare)
+
+
+---
+
+## 🧪 VERIFICACIÓN DE EMAIL (Nuevo)
+
+### Herramientas de Verificación
+- **test-email-recovery.js** ⭐⭐⭐
+  - Script automático de prueba
+  - Verifica configuración completa
+  - Envía email de prueba
+  - Muestra resultado detallado
+  - Uso: `npm run test:email`
+
+### Documentación de Verificación
+- **COMO-VERIFICAR-EMAIL.md** ⭐⭐⭐
+  - 3 métodos de verificación
+  - Interpretación de resultados
+  - Solución de problemas
+  - Checklist completo
+  - Comandos útiles
+
+- **VERIFICACION-EMAIL-IMPLEMENTADA.md**
+  - Resumen de implementación
+  - Archivos creados/modificados
+  - Guía de uso rápida
+
+---
+
+## 🔄 Flujo de Verificación de Email
+
+### Para Verificar si el Email Funciona
+```
+npm run test:email
+    ↓
+Ver resultado en consola
+    ↓
+Revisar email en Gmail
+    ↓
+✅ Funciona / ❌ No funciona
+    ↓
+Si no funciona: Ver COMO-VERIFICAR-EMAIL.md
+```
+
+### Para Ver Logs en Tiempo Real
+```
+npm start
+    ↓
+Solicitar reset de contraseña
+    ↓
+Observar consola del servidor
+    ↓
+Ver logs detallados (Message ID, Response, etc.)
+```
+
+### Para Ver Historial de Emails
+```
+Login como admin
+    ↓
+Panel Admin → Logs
+    ↓
+Buscar "Email Recuperación"
+    ↓
+Ver historial completo
+```
+
+---
+
+## 📋 Scripts NPM Disponibles
+
+```bash
+# Iniciar servidor
+npm start
+
+# Ejecutar tests
+npm test
+
+# Tests en modo watch
+npm test:watch
+
+# Probar email de recuperación ⭐ NUEVO
+npm run test:email
+```
+
+---
+
+**Última actualización**: Diciembre 2024 (Verificación de email agregada)

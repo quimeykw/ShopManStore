@@ -189,11 +189,17 @@ app.post('/api/forgot-password', async (req, res) => {
           }
           
           // Send email
+          console.log(`📧 Intentando enviar email de recuperación a: ${user.email}`);
           const emailSent = await sendPasswordResetEmail(user, token);
           
           if (!emailSent) {
+            console.error(`❌ Fallo al enviar email a: ${user.email}`);
+            saveLog(user.id, 'Error Email Recuperación', `Fallo al enviar email a ${user.email}`);
             return res.status(500).json({ error: 'Error al enviar el email' });
           }
+          
+          console.log(`✅ Email de recuperación enviado exitosamente a: ${user.email}`);
+          saveLog(user.id, 'Email Recuperación Enviado', `Email enviado a ${user.email} - Token: ${token.substring(0, 10)}...`);
           
           // Update rate limiting
           resetRequestTimes.set(user.id, Date.now());
