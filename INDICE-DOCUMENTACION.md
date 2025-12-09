@@ -201,3 +201,88 @@ DEPLOY-RENDER-FINAL.md (Troubleshooting)
 ---
 
 **Recomendación:** Empieza por README-TESTS.md y DEPLOY-RENDER-FINAL.md
+
+
+---
+
+## ⭐ NUEVAS GUÍAS (Diciembre 2024)
+
+### 🔐 Seguridad y Autenticación
+- **CONFIGURAR-RECUPERACION-CONTRASENA.md** ⭐⭐⭐
+  - Configuración completa de recuperación de contraseña por email
+  - Cómo obtener App Password de Gmail
+  - Variables de entorno necesarias
+  - Solución de problemas comunes
+  - Checklist de configuración
+
+### ☁️ Infraestructura y CDN
+- **CONFIGURAR-CLOUDFLARE.md** ⭐⭐⭐
+  - Conectar dominio con Cloudflare paso a paso
+  - Configuración de DNS y nameservers
+  - SSL/TLS automático y gratuito
+  - Optimizaciones de rendimiento (CDN, caché, minificación)
+  - Seguridad (DDoS protection, WAF, firewall)
+  - Ahorro de costos de hosting
+  - Troubleshooting completo
+
+---
+
+## 🔄 Flujo de Trabajo Actualizado
+
+### Para Configurar Email de Recuperación
+```
+CONFIGURAR-RECUPERACION-CONTRASENA.md
+    ↓
+Obtener App Password de Gmail
+    ↓
+Configurar .env (EMAIL_USER, EMAIL_APP_PASSWORD, BASE_URL)
+    ↓
+Reiniciar servidor
+    ↓
+Probar funcionalidad
+```
+
+### Para Conectar Dominio con Cloudflare
+```
+CONFIGURAR-CLOUDFLARE.md
+    ↓
+Obtener IP de Render
+    ↓
+Crear cuenta Cloudflare
+    ↓
+Cambiar nameservers en registrador
+    ↓
+Configurar DNS en Cloudflare
+    ↓
+Activar SSL/TLS
+    ↓
+Optimizaciones (Auto Minify, Brotli, Caché)
+```
+
+---
+
+## 📋 Checklist de Configuración Completa
+
+### Backend
+- [ ] Base de datos configurada (PostgreSQL/SQLite)
+- [ ] Variables de entorno configuradas
+- [ ] Email de recuperación configurado ⭐ NUEVO
+- [ ] Mercado Pago configurado
+- [ ] WhatsApp configurado
+
+### Frontend
+- [ ] Dominio registrado
+- [ ] Cloudflare configurado ⭐ NUEVO
+- [ ] SSL/TLS activo
+- [ ] CDN funcionando
+
+### Seguridad
+- [ ] HTTPS activo
+- [ ] Recuperación de contraseña funcional ⭐ NUEVO
+- [ ] Rate limiting activo
+- [ ] Firewall de Cloudflare activo ⭐ NUEVO
+
+---
+
+**Última actualización:** Diciembre 2024
+**Nuevos documentos:** 2 (Recuperación de contraseña + Cloudflare)

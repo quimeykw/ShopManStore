@@ -8,7 +8,8 @@
   - Document how to get Gmail app password in comments
   - _Requirements: 6.1, 6.3_
 
-- [ ] 2. Create database schema for password resets
+- [x] 2. Create database schema for password resets
+
   - [x] 2.1 Create password_resets table migration
 
 
@@ -24,6 +25,7 @@
     - Ensure table is created on application startup
     - _Requirements: 1.4_
 
+
 - [ ] 3. Implement backend email service
   - [x] 3.1 Create email service module
 
@@ -35,7 +37,9 @@
     - Add error logging for email failures
     - _Requirements: 6.1, 6.2, 6.3, 6.4_
   
-  - [ ] 3.2 Create email template for password reset
+  - [x] 3.2 Create email template for password reset
+
+
     - Design HTML email template with ShopManStore branding
     - Include reset link, username, and expiration notice
     - Ensure all text is in Spanish
@@ -54,6 +58,8 @@
     - Send reset email
     - Return generic success message (don't reveal if user exists)
     - _Requirements: 1.2, 1.3, 1.4, 1.5, 4.1, 4.4, 5.1, 5.2_
+
+
   
   - [ ] 4.2 Add rate limiting for reset requests
     - Implement 5-minute cooldown between requests per user
@@ -70,6 +76,7 @@
   - Return validation result
   - _Requirements: 3.1, 4.2_
 
+
 - [ ] 6. Implement password reset endpoint
   - [x] 6.1 Create POST /api/reset-password route
 
@@ -81,6 +88,7 @@
     - Update user's password in database
     - Mark token as used
     - Return success message
+
     - _Requirements: 3.4, 3.5, 4.3, 5.4_
 
 - [ ] 7. Update frontend forgot password modal
@@ -90,6 +98,8 @@
     - Add input validation for empty fields
     - Implement form submission to /api/forgot-password
     - Display success message after submission
+
+
     - Handle and display errors
     - _Requirements: 1.1, 1.2, 5.1, 5.5_
 
@@ -147,6 +157,9 @@
     - Test complete flow: request → email → reset → login
     - Test expired token flow
     - Test multiple requests invalidating old tokens
+
+
+
     - Mock email service for testing
     - _Requirements: All_
 
