@@ -1,0 +1,184 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Test - Recuperación de Contraseña</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-gray-100 p-8">
+  <div class="max-w-2xl mx-auto">
+    <h1 class="text-3xl font-bold mb-6">🧪 Test - Recuperación de Contraseña</h1>
+    
+    <div class="bg-white p-6 rounded-lg shadow mb-6">
+      <h2 class="text-xl font-bold mb-4">1. Verificar Elementos del DOM</h2>
+      <button onclick="verificarElementos()" class="bg-blue-600 text-white px-4 py-2 rounded">
+        Verificar Elementos
+      </button>
+      <pre id="resultadoElementos" class="mt-4 p-4 bg-gray-100 rounded text-sm overflow-auto"></pre>
+    </div>
+    
+    <div class="bg-white p-6 rounded-lg shadow mb-6">
+      <h2 class="text-xl font-bold mb-4">2. Probar Abrir Modal</h2>
+      <button onclick="abrirModal()" class="bg-green-600 text-white px-4 py-2 rounded">
+        Abrir Modal de Recuperación
+      </button>
+      <button onclick="cerrarModal()" class="bg-red-600 text-white px-4 py-2 rounded ml-2">
+        Cerrar Modal
+      </button>
+    </div>
+    
+    <div class="bg-white p-6 rounded-lg shadow mb-6">
+      <h2 class="text-xl font-bold mb-4">3. Probar Envío</h2>
+      <input type="text" id="testUser" placeholder="Usuario o Email" class="w-full p-2 border rounded mb-3">
+      <button onclick="probarEnvio()" class="bg-indigo-600 text-white px-4 py-2 rounded">
+        Probar Envío
+      </button>
+      <pre id="resultadoEnvio" class="mt-4 p-4 bg-gray-100 rounded text-sm overflow-auto"></pre>
+    </div>
+  </div>
+
+  <!-- Modal de Recuperación (copiado del index.html) -->
+  <div id="forgotPasswordModal" class="hidden fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+    <div class="bg-white p-6 rounded-lg w-full max-w-md mx-4">
+      <h2 class="text-xl font-bold mb-4">Recuperar Contraseña</h2>
+      <p class="text-sm text-gray-600 mb-4">Ingresa tu nombre de usuario o email para recuperar tu contraseña.</p>
+      <input type="text" id="forgotUser" placeholder="Usuario o Email" class="w-full p-2 border rounded mb-3">
+      <button id="forgotPasswordSubmit" class="w-full bg-indigo-600 text-white p-2 rounded mb-2 min-h-[44px]">Recuperar Contraseña</button>
+      <button id="cancelForgotPassword" class="w-full bg-gray-300 p-2 rounded min-h-[44px]">Cancelar</button>
+      <p id="forgotError" class="text-red-600 text-sm mt-2 hidden"></p>
+      <p id="forgotSuccess" class="text-green-600 text-sm mt-2 hidden"></p>
+    </div>
+  </div>
+
+  <script>
+    const API = 'http://localhost:3001/api';
+    
+    function verificarElementos() {
+      const elementos = {
+        'forgotPasswordModal': document.getElementById('forgotPasswordModal'),
+        'forgotUser': document.getElementById('forgotUser'),
+        'forgotPasswordSubmit': document.getElementById('forgotPasswordSubmit'),
+        'cancelForgotPassword': document.getElementById('cancelForgotPassword'),
+        'forgotError': document.getElementById('forgotError'),
+        'forgotSuccess': document.getElementById('forgotSuccess')
+      };
+      
+      let resultado = '✅ Verificación de Elementos:\n\n';
+      
+      for (const [nombre, elemento] of Object.entries(elementos)) {
+        if (elemento) {
+          resultado += `✓ ${nombre}: ENCONTRADO\n`;
+          resultado += `  - Clases: ${elemento.className}\n`;
+          resultado += `  - Visible: ${!elemento.classList.contains('hidden')}\n\n`;
+        } else {
+          resultado += `✗ ${nombre}: NO ENCONTRADO\n\n`;
+        }
+      }
+      
+      document.getElementById('resultadoElementos').textContent = resultado;
+    }
+    
+    function abrirModal() {
+      const modal = document.getElementById('forgotPasswordModal');
+      if (modal) {
+        modal.classList.remove('hidden');
+        console.log('Modal abierto');
+      } else {
+        alert('Modal no encontrado');
+      }
+    }
+    
+    function cerrarModal() {
+      const modal = document.getElementById('forgotPasswordModal');
+      if (modal) {
+        modal.classList.add('hidden');
+        console.log('Modal cerrado');
+      }
+    }
+    
+    async function probarEnvio() {
+      const identifier = document.getElementById('testUser').value.trim();
+      const resultado = document.getElementById('resultadoEnvio');
+      
+      if (!identifier) {
+        resultado.textContent = '❌ Por favor ingresa un usuario o email';
+        return;
+      }
+      
+      resultado.textContent = '⏳ Enviando solicitud...\n';
+      
+      try {
+        const res = await fetch(API + '/forgot-password', {
+          method: 'POST',
+          headers: {'Content-Type': 'application/json'},
+          body: JSON.stringify({usernameOrEmail: identifier})
+        });
+        
+        const data = await res.json();
+        
+        let output = `Status: ${res.status}\n`;
+        output += `OK: ${res.ok}\n\n`;
+        output += `Respuesta:\n${JSON.stringify(data, null, 2)}\n`;
+        
+        if (res.ok) {
+          output += '\n✅ Solicitud exitosa!\n';
+          output += 'Revisa tu email (carpeta SPAM)';
+        } else {
+          output += '\n❌ Error en la solicitud';
+        }
+        
+        resultado.textContent = output;
+      } catch (err) {
+        resultado.textContent = `❌ Error de conexión:\n${err.message}\n\nAsegúrate de que el servidor esté corriendo:\nnpm start`;
+      }
+    }
+    
+    // Configurar eventos del modal
+    document.getElementById('cancelForgotPassword').onclick = cerrarModal;
+    document.getElementById('forgotPasswordSubmit').onclick = async () => {
+      const identifier = document.getElementById('forgotUser').value.trim();
+      const errorEl = document.getElementById('forgotError');
+      const successEl = document.getElementById('forgotSuccess');
+      
+      errorEl.classList.add('hidden');
+      successEl.classList.add('hidden');
+      
+      if (!identifier) {
+        errorEl.textContent = 'Por favor ingresa tu usuario o email';
+        errorEl.classList.remove('hidden');
+        return;
+      }
+      
+      try {
+        const res = await fetch(API + '/forgot-password', {
+          method: 'POST',
+          headers: {'Content-Type': 'application/json'},
+          body: JSON.stringify({usernameOrEmail: identifier})
+        });
+        
+        const data = await res.json();
+        
+        if (res.ok) {
+          successEl.innerHTML = `
+            <strong>✓ Solicitud enviada</strong><br><br>
+            ${data.message}<br><br>
+            <small>Revisa tu bandeja de entrada y spam.</small>
+          `;
+          successEl.classList.remove('hidden');
+          document.getElementById('forgotUser').value = '';
+        } else {
+          errorEl.textContent = data.error || 'Error al procesar la solicitud';
+          errorEl.classList.remove('hidden');
+        }
+      } catch (err) {
+        errorEl.textContent = 'Error de conexión';
+        errorEl.classList.remove('hidden');
+      }
+    };
+    
+    console.log('✅ Test de recuperación de contraseña cargado');
+    console.log('Servidor debe estar corriendo en: http://localhost:3001');
+  </script>
+</body>
+</html>
