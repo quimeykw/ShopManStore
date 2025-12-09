@@ -17,8 +17,10 @@ services:
         sync: false
       - key: EMAIL_APP_PASSWORD
         sync: false
-      - key: BASE_URL
-        sync: false
+      # BASE_URL is optional - auto-detected from RENDER_EXTERNAL_URL
+      # Only set manually if you have a custom domain
+      # - key: BASE_URL
+      #   value: https://tu-dominio-personalizado.com
       - key: WHATSAPP_PHONE
         value: "5491122549995"
       - key: WHATSAPP_ENABLED

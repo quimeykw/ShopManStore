@@ -10,7 +10,7 @@ Para que el sistema de recuperación de contraseña y notificaciones WhatsApp fu
 |----------|-------|-------------|
 | `EMAIL_USER` | `quimeykw@gmail.com` | Tu email de Gmail |
 | `EMAIL_APP_PASSWORD` | `yianricsnvxfhxbl` | Contraseña de aplicación de Gmail |
-| `BASE_URL` | `https://tu-app.onrender.com` | URL de tu aplicación en Render |
+| `BASE_URL` | *(Opcional)* | Se detecta automáticamente. Solo configura si tienes dominio personalizado |
 
 ### Variables de WhatsApp (Notificaciones)
 

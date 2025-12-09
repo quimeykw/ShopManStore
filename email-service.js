@@ -3,7 +3,13 @@ const nodemailer = require('nodemailer');
 // Email service configuration
 const EMAIL_USER = process.env.EMAIL_USER;
 const EMAIL_APP_PASSWORD = process.env.EMAIL_APP_PASSWORD;
-const BASE_URL = process.env.BASE_URL || 'http://localhost:3001';
+
+// Auto-detect BASE_URL based on environment
+// In production (Render), use RENDER_EXTERNAL_URL or custom BASE_URL
+// In development, use localhost
+const BASE_URL = process.env.BASE_URL || 
+                 process.env.RENDER_EXTERNAL_URL || 
+                 (process.env.NODE_ENV === 'production' ? 'https://shopmanstore.onrender.com' : 'http://localhost:3001');
 
 let transporter = null;
 let emailEnabled = false;
@@ -20,6 +26,8 @@ try {
     });
     emailEnabled = true;
     console.log('✓ Servicio de email configurado');
+    console.log(`  BASE_URL: ${BASE_URL}`);
+    console.log(`  Entorno: ${process.env.NODE_ENV || 'development'}`);
   } else {
     console.warn('⚠ Email no configurado - Recuperación de contraseña deshabilitada');
     console.warn('  Configura EMAIL_USER y EMAIL_APP_PASSWORD en .env para habilitar');

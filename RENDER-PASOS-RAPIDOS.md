@@ -14,7 +14,7 @@ Haz clic en: **shopmanstore**
 
 En el menú lateral izquierdo, haz clic en: **Environment**
 
-### 4️⃣ Agrega estas 3 variables
+### 4️⃣ Agrega estas 2 variables
 
 Haz clic en **"Add Environment Variable"** para cada una:
 
@@ -30,12 +30,7 @@ Key: EMAIL_APP_PASSWORD
 Value: yianricsnvxfhxbl
 ```
 
-#### Variable 3:
-```
-Key: BASE_URL
-Value: https://shopmanstore.onrender.com
-```
-*(Reemplaza con tu URL real de Render)*
+**Nota:** ✨ BASE_URL se detecta automáticamente desde Render. No necesitas configurarla a menos que tengas un dominio personalizado.
 
 ### 5️⃣ Guarda los cambios
 
