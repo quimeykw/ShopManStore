@@ -49,6 +49,60 @@
       transform: scale(1.05);
     }
     
+    /* Gallery thumbnail styles */
+    .thumbnail-container {
+      scrollbar-width: thin;
+      scrollbar-color: #cbd5e1 #f1f5f9;
+    }
+    
+    .thumbnail-container::-webkit-scrollbar {
+      height: 4px;
+    }
+    
+    .thumbnail-container::-webkit-scrollbar-track {
+      background: #f1f5f9;
+      border-radius: 2px;
+    }
+    
+    .thumbnail-container::-webkit-scrollbar-thumb {
+      background: #cbd5e1;
+      border-radius: 2px;
+    }
+    
+    .thumbnail-container::-webkit-scrollbar-thumb:hover {
+      background: #94a3b8;
+    }
+    
+    /* Gallery animations */
+    .gallery-transition {
+      transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+    
+    .thumbnail-scroll-fade {
+      position: relative;
+    }
+    
+    .thumbnail-scroll-fade::before,
+    .thumbnail-scroll-fade::after {
+      content: '';
+      position: absolute;
+      top: 0;
+      bottom: 0;
+      width: 20px;
+      pointer-events: none;
+      z-index: 1;
+    }
+    
+    .thumbnail-scroll-fade::before {
+      left: 0;
+      background: linear-gradient(to right, rgba(255,255,255,0.8), transparent);
+    }
+    
+    .thumbnail-scroll-fade::after {
+      right: 0;
+      background: linear-gradient(to left, rgba(255,255,255,0.8), transparent);
+    }
+    
     @media (max-width: 640px) {
       .logo-image {
         width: 60px;

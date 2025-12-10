@@ -11,6 +11,7 @@ class ImageGallery {
     this.productId = productId;
     this.images = images || [];
     this.currentIndex = 0;
+    this.touchHandler = null;
   }
   
   render() {
@@ -22,28 +23,28 @@ class ImageGallery {
     const hasMultiple = this.images.length > 1;
     
     return `
-      <div class="relative mb-3">
+      <div class="relative mb-3" id="gallery-main-${this.productId}">
         <img src="${mainImage}" 
              loading="lazy"
              onclick="openImageZoom(${this.productId}, ${this.currentIndex})" 
-             class="w-full h-48 object-cover rounded cursor-pointer hover:opacity-90 transition">
+             class="w-full h-48 object-cover rounded cursor-pointer hover:opacity-90 transition-all duration-300">
         
         ${hasMultiple ? `
           <!-- Navigation arrows -->
           <button onclick="galleryPrev(${this.productId}); event.stopPropagation();" 
-                  class="absolute left-2 top-1/2 transform -translate-y-1/2 bg-black bg-opacity-50 text-white rounded-full w-8 h-8 flex items-center justify-center hover:bg-opacity-70">
+                  class="absolute left-2 top-1/2 transform -translate-y-1/2 bg-black bg-opacity-50 text-white rounded-full w-8 h-8 flex items-center justify-center hover:bg-opacity-70 transition-all duration-200 z-10">
             <i class="fas fa-chevron-left"></i>
           </button>
           <button onclick="galleryNext(${this.productId}); event.stopPropagation();" 
-                  class="absolute right-2 top-1/2 transform -translate-y-1/2 bg-black bg-opacity-50 text-white rounded-full w-8 h-8 flex items-center justify-center hover:bg-opacity-70">
+                  class="absolute right-2 top-1/2 transform -translate-y-1/2 bg-black bg-opacity-50 text-white rounded-full w-8 h-8 flex items-center justify-center hover:bg-opacity-70 transition-all duration-200 z-10">
             <i class="fas fa-chevron-right"></i>
           </button>
           
           <!-- Indicators -->
-          <div class="absolute bottom-2 left-1/2 transform -translate-x-1/2 flex gap-1">
+          <div class="absolute bottom-2 left-1/2 transform -translate-x-1/2 flex gap-1 z-10">
             ${this.images.map((_, i) => `
               <button onclick="galleryGoTo(${this.productId}, ${i}); event.stopPropagation();" 
-                      class="w-2 h-2 rounded-full ${i === this.currentIndex ? 'bg-white' : 'bg-white bg-opacity-50'}">
+                      class="w-2 h-2 rounded-full transition-all duration-200 ${i === this.currentIndex ? 'bg-white scale-125' : 'bg-white bg-opacity-50 hover:bg-opacity-75'}">
               </button>
             `).join('')}
           </div>
@@ -51,32 +52,96 @@ class ImageGallery {
       </div>
       
       ${hasMultiple ? `
-        <!-- Thumbnails -->
-        <div class="flex gap-2 mb-3 overflow-x-auto">
-          ${this.images.map((img, i) => `
-            <img src="${img}" 
-                 loading="lazy"
-                 onclick="galleryGoTo(${this.productId}, ${i})" 
-                 class="w-16 h-16 object-cover rounded cursor-pointer ${i === this.currentIndex ? 'ring-2 ring-indigo-600' : 'opacity-60 hover:opacity-100'} transition">
-          `).join('')}
+        <!-- Thumbnails with swipe support -->
+        <div id="thumbnails-${this.productId}" class="relative mb-3 thumbnail-scroll-fade">
+          <div class="flex gap-2 overflow-x-auto pb-2 scroll-smooth thumbnail-container">
+            ${this.images.map((img, i) => `
+              <div class="flex-shrink-0">
+                <img src="${img}" 
+                     loading="lazy"
+                     onclick="galleryGoTo(${this.productId}, ${i}); event.stopPropagation();" 
+                     class="w-16 h-16 object-cover rounded cursor-pointer gallery-transition transform hover:scale-105 ${i === this.currentIndex ? 'ring-2 ring-indigo-600 shadow-lg scale-110' : 'opacity-60 hover:opacity-100'}">
+              </div>
+            `).join('')}
+          </div>
+          
+          <!-- Thumbnail navigation arrows -->
+          ${this.images.length > 4 ? `
+            <button onclick="scrollThumbnails(${this.productId}, 'left')" 
+                    class="absolute left-0 top-1/2 transform -translate-y-1/2 bg-white bg-opacity-90 text-gray-700 rounded-full w-6 h-6 flex items-center justify-center hover:bg-opacity-100 transition-all duration-200 shadow-md z-10">
+              <i class="fas fa-chevron-left text-xs"></i>
+            </button>
+            <button onclick="scrollThumbnails(${this.productId}, 'right')" 
+                    class="absolute right-0 top-1/2 transform -translate-y-1/2 bg-white bg-opacity-90 text-gray-700 rounded-full w-6 h-6 flex items-center justify-center hover:bg-opacity-100 transition-all duration-200 shadow-md z-10">
+              <i class="fas fa-chevron-right text-xs"></i>
+            </button>
+          ` : ''}
         </div>
       ` : ''}
     `;
   }
   
   next() {
+    if (this.images.length <= 1) return;
     this.currentIndex = (this.currentIndex + 1) % this.images.length;
     this.updateDisplay();
+    this.scrollToActiveThumbnail();
   }
   
   prev() {
+    if (this.images.length <= 1) return;
     this.currentIndex = (this.currentIndex - 1 + this.images.length) % this.images.length;
     this.updateDisplay();
+    this.scrollToActiveThumbnail();
   }
   
   goTo(index) {
+    if (index < 0 || index >= this.images.length) return;
     this.currentIndex = index;
     this.updateDisplay();
+    this.scrollToActiveThumbnail();
+  }
+  
+  scrollToActiveThumbnail() {
+    // Scroll the thumbnail container to show the active thumbnail
+    setTimeout(() => {
+      const thumbnailContainer = document.querySelector(`#thumbnails-${this.productId} .overflow-x-auto`);
+      if (thumbnailContainer) {
+        const thumbnails = thumbnailContainer.querySelectorAll('img');
+        const activeThumbnail = thumbnails[this.currentIndex];
+        if (activeThumbnail) {
+          const containerWidth = thumbnailContainer.clientWidth;
+          const thumbnailLeft = activeThumbnail.offsetLeft;
+          const thumbnailWidth = activeThumbnail.offsetWidth;
+          const scrollLeft = thumbnailLeft - (containerWidth / 2) + (thumbnailWidth / 2);
+          
+          thumbnailContainer.scrollTo({
+            left: Math.max(0, scrollLeft),
+            behavior: 'smooth'
+          });
+        }
+      }
+    }, 50);
+  }
+  
+  setupTouchHandlers() {
+    // Setup touch handlers for main image
+    setTimeout(() => {
+      const mainElement = document.getElementById(`gallery-main-${this.productId}`);
+      if (mainElement && this.images.length > 1) {
+        this.touchHandler = new TouchHandler(
+          mainElement,
+          () => this.next(), // Swipe left = next
+          () => this.prev()  // Swipe right = prev
+        );
+      }
+      
+      // Setup touch handlers for thumbnails
+      const thumbnailContainer = document.querySelector(`#thumbnails-${this.productId} .overflow-x-auto`);
+      if (thumbnailContainer && this.images.length > 1) {
+        new ThumbnailSwipeHandler(thumbnailContainer, this.productId);
+      }
+    }, 100);
   }
   
   updateDisplay() {
@@ -121,6 +186,63 @@ class TouchHandler {
       } else {
         // Swipe right (previous image)
         this.onSwipeRight();
+      }
+    }
+  }
+}
+
+// Thumbnail Swipe Handler - Handles swipe gestures on thumbnail container
+class ThumbnailSwipeHandler {
+  constructor(element, productId) {
+    this.element = element;
+    this.productId = productId;
+    this.startX = 0;
+    this.startY = 0;
+    this.minSwipeDistance = 30;
+    this.isScrolling = false;
+    
+    element.addEventListener('touchstart', this.handleStart.bind(this), { passive: true });
+    element.addEventListener('touchmove', this.handleMove.bind(this), { passive: false });
+    element.addEventListener('touchend', this.handleEnd.bind(this), { passive: true });
+  }
+  
+  handleStart(e) {
+    this.startX = e.touches[0].clientX;
+    this.startY = e.touches[0].clientY;
+    this.isScrolling = false;
+  }
+  
+  handleMove(e) {
+    if (this.isScrolling) return;
+    
+    const currentX = e.touches[0].clientX;
+    const currentY = e.touches[0].clientY;
+    const diffX = Math.abs(this.startX - currentX);
+    const diffY = Math.abs(this.startY - currentY);
+    
+    // Si el movimiento es más horizontal que vertical, es un swipe
+    if (diffX > diffY && diffX > 10) {
+      this.isScrolling = true;
+      // Permitir el scroll horizontal nativo
+    }
+  }
+  
+  handleEnd(e) {
+    if (!this.isScrolling) {
+      const endX = e.changedTouches[0].clientX;
+      const endY = e.changedTouches[0].clientY;
+      const diffX = this.startX - endX;
+      const diffY = this.startY - endY;
+      
+      // Detectar swipe vertical en thumbnails para cambiar imagen
+      if (Math.abs(diffY) > Math.abs(diffX) && Math.abs(diffY) > this.minSwipeDistance) {
+        if (diffY > 0) {
+          // Swipe up (next image)
+          galleryNext(this.productId);
+        } else {
+          // Swipe down (previous image)
+          galleryPrev(this.productId);
+        }
       }
     }
   }
@@ -1070,6 +1192,13 @@ function renderProducts() {
     </div>
   `;
   }).join('');
+  
+  // Configurar touch handlers para todas las galerías después del render
+  setTimeout(() => {
+    Object.values(galleries).forEach(gallery => {
+      gallery.setupTouchHandlers();
+    });
+  }, 200);
 }
 function addToCart(productId) {
   const product = products.find(p => p.id === productId);
@@ -1808,6 +1937,27 @@ function galleryPrev(productId) {
 function galleryGoTo(productId, index) {
   if (galleries[productId]) {
     galleries[productId].goTo(index);
+  }
+}
+
+// Thumbnail scroll functions
+function scrollThumbnails(productId, direction) {
+  const thumbnailContainer = document.querySelector(`#thumbnails-${productId} .overflow-x-auto`);
+  if (!thumbnailContainer) return;
+  
+  const scrollAmount = 80; // Width of thumbnail + gap
+  const currentScroll = thumbnailContainer.scrollLeft;
+  
+  if (direction === 'left') {
+    thumbnailContainer.scrollTo({
+      left: Math.max(0, currentScroll - scrollAmount),
+      behavior: 'smooth'
+    });
+  } else {
+    thumbnailContainer.scrollTo({
+      left: currentScroll + scrollAmount,
+      behavior: 'smooth'
+    });
   }
 }
 
