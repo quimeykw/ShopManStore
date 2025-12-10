@@ -165,6 +165,7 @@ class ImageGallery {
     const mainImg = document.querySelector(`#gallery-main-${this.productId} img`);
     if (mainImg && this.images[this.currentIndex]) {
       mainImg.src = this.images[this.currentIndex];
+      mainImg.onclick = () => openImageZoom(this.productId, this.currentIndex);
     }
   }
   
@@ -1199,7 +1200,7 @@ function renderProductGallery(productId, images) {
   
   // Template optimizado con menos interpolaciones
   let html = `<div class="relative mb-3" id="gallery-main-${productId}">
-    <img src="${mainImage}" loading="lazy" class="w-full h-48 object-cover rounded cursor-pointer hover:opacity-90 transition-all duration-300">`;
+    <img src="${mainImage}" loading="lazy" onclick="openImageZoom(${productId}, 0)" class="w-full h-48 object-cover rounded cursor-pointer hover:opacity-90 transition-all duration-300">`;
   
   if (hasMultiple) {
     html += `
@@ -1224,7 +1225,10 @@ function renderProductGallery(productId, images) {
     for (let i = 0; i < images.length; i++) {
       const activeClass = i === 0 ? 'ring-2 ring-indigo-600 shadow-lg scale-110' : 'opacity-60 hover:opacity-100';
       html += `<div class="flex-shrink-0">
-        <img src="${images[i]}" loading="lazy" onclick="galleryGoTo(${productId}, ${i})" 
+        <img src="${images[i]}" loading="lazy" 
+             onclick="galleryGoTo(${productId}, ${i})" 
+             ondblclick="openImageZoom(${productId}, ${i})"
+             title="Clic para cambiar, doble clic para ampliar"
              class="w-16 h-16 object-cover rounded cursor-pointer gallery-transition transform hover:scale-105 ${activeClass}">
       </div>`;
     }
@@ -2071,9 +2075,35 @@ function openImageZoom(productId, startIndex = 0) {
   currentZoomImages = images;
   currentZoomIndex = startIndex;
   
-  $('zoomedImage').src = images[startIndex];
+  const zoomedImg = $('zoomedImage');
+  zoomedImg.src = images[startIndex];
+  zoomedImg.style.opacity = '1';
+  
   $('imageZoomModal').classList.remove('hidden');
   updateZoomControls();
+  
+  // Agregar event listeners del teclado
+  document.addEventListener('keydown', handleZoomKeyboard);
+  
+  // Agregar soporte táctil para el zoom
+  if (images.length > 1) {
+    setupZoomTouchHandlers();
+  }
+  
+  // Focus en el modal para capturar teclas
+  $('imageZoomModal').focus();
+}
+
+// Configurar gestos táctiles para el zoom
+function setupZoomTouchHandlers() {
+  const zoomModal = $('imageZoomModal');
+  if (zoomModal && !zoomModal.zoomTouchHandler) {
+    zoomModal.zoomTouchHandler = new TouchHandler(
+      zoomModal,
+      () => zoomNextImage(), // Swipe left = next
+      () => zoomPrevImage()  // Swipe right = prev
+    );
+  }
 }
 
 function zoomImage(imageSrc) {
@@ -2087,6 +2117,25 @@ function zoomImage(imageSrc) {
 
 function closeImageZoom() {
   $('imageZoomModal').classList.add('hidden');
+  // Remover event listeners del teclado
+  document.removeEventListener('keydown', handleZoomKeyboard);
+}
+
+// Función para manejar teclas en el zoom
+function handleZoomKeyboard(e) {
+  switch(e.key) {
+    case 'Escape':
+      closeImageZoom();
+      break;
+    case 'ArrowLeft':
+      e.preventDefault();
+      zoomPrevImage();
+      break;
+    case 'ArrowRight':
+      e.preventDefault();
+      zoomNextImage();
+      break;
+  }
 }
 
 // Variables para zoom
@@ -2127,7 +2176,12 @@ function updateZoomControls() {
 function zoomNextImage() {
   if (currentZoomImages.length > 1) {
     currentZoomIndex = (currentZoomIndex + 1) % currentZoomImages.length;
-    $('zoomedImage').src = currentZoomImages[currentZoomIndex];
+    const zoomedImg = $('zoomedImage');
+    zoomedImg.style.opacity = '0.7';
+    setTimeout(() => {
+      zoomedImg.src = currentZoomImages[currentZoomIndex];
+      zoomedImg.style.opacity = '1';
+    }, 150);
     updateZoomControls();
   }
 }
@@ -2135,13 +2189,18 @@ function zoomNextImage() {
 function zoomPrevImage() {
   if (currentZoomImages.length > 1) {
     currentZoomIndex = (currentZoomIndex - 1 + currentZoomImages.length) % currentZoomImages.length;
-    $('zoomedImage').src = currentZoomImages[currentZoomIndex];
+    const zoomedImg = $('zoomedImage');
+    zoomedImg.style.opacity = '0.7';
+    setTimeout(() => {
+      zoomedImg.src = currentZoomImages[currentZoomIndex];
+      zoomedImg.style.opacity = '1';
+    }, 150);
     updateZoomControls();
   }
 }
 
 function zoomGoTo(index) {
-  if (index >= 0 && index < currentZoomImages.length) {
+  if (index >= 0 && index < currentZoomImages.length && index !== currentZoomIndex) {
     currentZoomIndex = index;
     $('zoomedImage').src = currentZoomImages[currentZoomIndex];
     updateZoomControls();
