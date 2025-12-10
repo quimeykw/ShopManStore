@@ -182,6 +182,8 @@
   - Implementar endpoint /api/metrics para estadísticas
   - Añadir métricas de uptime, tiempo de respuesta y caché
 
+
+
   - Configurar logging estructurado para análisis
   - _Requisitos: 5.5_
 

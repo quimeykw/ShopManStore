@@ -582,6 +582,48 @@ app.get('/api/logs', auth, isAdmin, (req, res) => {
   );
 });
 
+// METRICS - Core Web Vitals
+app.post('/api/metrics', (req, res) => {
+  const { name, value, id, url, timestamp, userAgent } = req.body;
+  
+  // Validar datos básicos
+  if (!name || value === undefined) {
+    return res.status(400).json({ error: 'Name and value required' });
+  }
+  
+  // Guardar métrica en logs para análisis
+  const details = `${name}: ${value}ms | URL: ${url} | ID: ${id || 'N/A'}`;
+  saveLog(null, 'Web Vital', details);
+  
+  // Respuesta rápida
+  res.status(200).json({ received: true });
+});
+
+// GET metrics - Dashboard de métricas
+app.get('/api/metrics', auth, isAdmin, (req, res) => {
+  db.all(
+    "SELECT * FROM logs WHERE action = 'Web Vital' ORDER BY created_at DESC LIMIT 100",
+    (err, rows) => {
+      if (err) return res.status(500).json({ error: 'Error fetching metrics' });
+      
+      // Procesar métricas para dashboard
+      const metrics = (rows || []).map(row => {
+        const details = row.details || '';
+        const match = details.match(/(\w+): ([\d.]+)ms/);
+        return {
+          id: row.id,
+          name: match ? match[1] : 'Unknown',
+          value: match ? parseFloat(match[2]) : 0,
+          timestamp: row.created_at,
+          details: details
+        };
+      });
+      
+      res.json(metrics);
+    }
+  );
+});
+
 // MERCADO PAGO
 // Crear pago con Mercado Pago
 app.post('/api/mp-payment', auth, async (req, res) => {
