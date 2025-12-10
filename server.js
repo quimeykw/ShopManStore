@@ -307,7 +307,9 @@ const CACHE_DURATION = 5 * 60 * 1000; // 5 minutos
 // PRODUCTS con paginación y caché
 app.get('/api/products', (req, res) => {
   const page = parseInt(req.query.page) || 1;
-  const limit = Math.min(parseInt(req.query.limit) || 20, 20); // Máximo 20 items
+  // Si no se especifica paginación, mostrar todos los productos (hasta 100)
+  // Si se especifica, usar paginación con máximo 20 por página
+  const limit = req.query.limit ? Math.min(parseInt(req.query.limit), 20) : 100;
   const offset = (page - 1) * limit;
   
   // Verificar caché

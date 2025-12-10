@@ -5,6 +5,10 @@
   "main": "server.js",
   "scripts": {
     "start": "node server.js",
+    "setup": "node add-products-simple.js",
+    "check-products": "node check-products.js",
+    "verify": "node verify-optimizations.js",
+    "minify": "node minify-assets.js",
     "test": "jest --verbose",
     "test:watch": "jest --watch",
     "test:email": "node test-email-recovery.js",

@@ -1173,9 +1173,11 @@ async function handleForgotPassword() {
 }
 
 // Products
-async function loadProducts(page = 1, limit = 20) {
+async function loadProducts(page = 1, limit = null) {
   try {
-    const res = await fetch(`${API}/products?page=${page}&limit=${limit}`);
+    // Si no se especifica límite, cargar todos los productos
+    const url = limit ? `${API}/products?page=${page}&limit=${limit}` : `${API}/products`;
+    const res = await fetch(url);
     const data = await res.json();
     
     // Manejar respuesta con paginación o sin ella (compatibilidad)

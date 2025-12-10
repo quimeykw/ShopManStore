@@ -21,6 +21,7 @@ function initDatabase(db, isPostgres = false) {
         image TEXT,
         images TEXT,
         sizes TEXT,
+        colors TEXT,
         stock INTEGER DEFAULT 0,
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
       )`);
@@ -36,6 +37,10 @@ function initDatabase(db, isPostgres = false) {
       
       db.run(`ALTER TABLE products ADD COLUMN IF NOT EXISTS images TEXT`, (err) => {
         if (!err) console.log('✓ Columna images verificada/agregada');
+      });
+      
+      db.run(`ALTER TABLE products ADD COLUMN IF NOT EXISTS colors TEXT`, (err) => {
+        if (!err) console.log('✓ Columna colors verificada/agregada');
       });
 
       db.run(`CREATE TABLE IF NOT EXISTS orders (
@@ -142,6 +147,7 @@ function initDatabase(db, isPostgres = false) {
         image TEXT,
         images TEXT,
         sizes TEXT,
+        colors TEXT,
         stock INTEGER DEFAULT 0,
         created_at DATETIME DEFAULT CURRENT_TIMESTAMP
       )`);
@@ -193,6 +199,23 @@ function initDatabase(db, isPostgres = false) {
               if (!columnNames.includes('card_type')) {
                 db.run(`ALTER TABLE orders ADD COLUMN card_type TEXT`, (err) => {
                   if (!err) console.log('✓ Columna card_type agregada a orders');
+                });
+              }
+            }
+          });
+        }
+      });
+
+      // Migrar columnas de products si la tabla ya existe (SQLite)
+      db.run(`PRAGMA table_info(products)`, (err, rows) => {
+        if (!err) {
+          db.all(`PRAGMA table_info(products)`, (err, columns) => {
+            if (!err && columns) {
+              const columnNames = columns.map(col => col.name);
+              
+              if (!columnNames.includes('colors')) {
+                db.run(`ALTER TABLE products ADD COLUMN colors TEXT`, (err) => {
+                  if (!err) console.log('✓ Columna colors agregada a products');
                 });
               }
             }
