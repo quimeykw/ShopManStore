@@ -145,8 +145,25 @@ class ImageGallery {
   }
   
   updateDisplay() {
-    // Re-render the product card
-    renderProducts();
+    try {
+      // Re-render solo este producto específico
+      const productCard = document.querySelector(`#gallery-main-${this.productId}`);
+      if (productCard) {
+        const product = products.find(p => p.id === this.productId);
+        if (product) {
+          const images = getProductImages(product);
+          const galleryContainer = productCard.parentElement;
+          galleryContainer.innerHTML = renderProductGallery(this.productId, images);
+          
+          // Scroll al thumbnail activo
+          this.scrollToActiveThumbnail();
+        }
+      }
+    } catch (error) {
+      console.error('Error en updateDisplay:', error);
+      // Fallback: re-render completo
+      renderProducts();
+    }
   }
 }
 
@@ -1141,6 +1158,79 @@ async function loadProducts() {
   }
 }
 
+// Función para renderizar galería de producto de forma robusta
+function renderProductGallery(productId, images) {
+  if (!images || images.length === 0) {
+    return '<img src="/placeholder.jpg" class="w-full h-48 object-cover rounded mb-3">';
+  }
+  
+  const hasMultiple = images.length > 1;
+  const currentIndex = galleries[productId] ? galleries[productId].currentIndex : 0;
+  const mainImage = images[currentIndex] || images[0];
+  
+  // Crear o actualizar galería
+  if (!galleries[productId]) {
+    galleries[productId] = new ImageGallery(productId, images);
+  }
+  
+  return `
+    <div class="relative mb-3" id="gallery-main-${productId}">
+      <img src="${mainImage}" 
+           loading="lazy"
+           onclick="openImageZoom && openImageZoom(${productId}, ${currentIndex})" 
+           class="w-full h-48 object-cover rounded cursor-pointer hover:opacity-90 transition-all duration-300">
+      
+      ${hasMultiple ? `
+        <!-- Navigation arrows -->
+        <button onclick="galleryPrev(${productId}); event.stopPropagation();" 
+                class="absolute left-2 top-1/2 transform -translate-y-1/2 bg-black bg-opacity-50 text-white rounded-full w-8 h-8 flex items-center justify-center hover:bg-opacity-70 transition-all duration-200 z-10">
+          <i class="fas fa-chevron-left"></i>
+        </button>
+        <button onclick="galleryNext(${productId}); event.stopPropagation();" 
+                class="absolute right-2 top-1/2 transform -translate-y-1/2 bg-black bg-opacity-50 text-white rounded-full w-8 h-8 flex items-center justify-center hover:bg-opacity-70 transition-all duration-200 z-10">
+          <i class="fas fa-chevron-right"></i>
+        </button>
+        
+        <!-- Indicators -->
+        <div class="absolute bottom-2 left-1/2 transform -translate-x-1/2 flex gap-1 z-10">
+          ${images.map((_, i) => `
+            <button onclick="galleryGoTo(${productId}, ${i}); event.stopPropagation();" 
+                    class="w-2 h-2 rounded-full transition-all duration-200 ${i === currentIndex ? 'bg-white scale-125' : 'bg-white bg-opacity-50 hover:bg-opacity-75'}">
+            </button>
+          `).join('')}
+        </div>
+      ` : ''}
+    </div>
+    
+    ${hasMultiple ? `
+      <!-- Thumbnails -->
+      <div id="thumbnails-${productId}" class="relative mb-3">
+        <div class="flex gap-2 overflow-x-auto pb-2 scroll-smooth thumbnail-container">
+          ${images.map((img, i) => `
+            <div class="flex-shrink-0">
+              <img src="${img}" 
+                   loading="lazy"
+                   onclick="galleryGoTo(${productId}, ${i}); event.stopPropagation();" 
+                   class="w-16 h-16 object-cover rounded cursor-pointer gallery-transition transform hover:scale-105 ${i === currentIndex ? 'ring-2 ring-indigo-600 shadow-lg scale-110' : 'opacity-60 hover:opacity-100'}">
+            </div>
+          `).join('')}
+        </div>
+        
+        ${images.length > 4 ? `
+          <button onclick="scrollThumbnails(${productId}, 'left')" 
+                  class="absolute left-0 top-1/2 transform -translate-y-1/2 bg-white bg-opacity-90 text-gray-700 rounded-full w-6 h-6 flex items-center justify-center hover:bg-opacity-100 transition-all duration-200 shadow-md z-10">
+            <i class="fas fa-chevron-left text-xs"></i>
+          </button>
+          <button onclick="scrollThumbnails(${productId}, 'right')" 
+                  class="absolute right-0 top-1/2 transform -translate-y-1/2 bg-white bg-opacity-90 text-gray-700 rounded-full w-6 h-6 flex items-center justify-center hover:bg-opacity-100 transition-all duration-200 shadow-md z-10">
+            <i class="fas fa-chevron-right text-xs"></i>
+          </button>
+        ` : ''}
+      </div>
+    ` : ''}
+  `;
+}
+
 function renderProducts() {
   const grid = $('productsGrid');
   grid.innerHTML = products.map(p => {
@@ -1149,13 +1239,12 @@ function renderProducts() {
     const stock = p.stock || 0;
     const outOfStock = stock === 0;
     
-    // Crear galería para este producto
+    // Crear galería mejorada y robusta
     const images = getProductImages(p);
-    galleries[p.id] = new ImageGallery(p.id, images);
     
     return `
     <div class="bg-white rounded-lg shadow p-4">
-      ${galleries[p.id].render()}
+      ${renderProductGallery(p.id, images)}
       <h3 class="font-bold mb-2">${p.name}</h3>
       <p class="text-sm text-gray-600 mb-2">${p.description}</p>
       
@@ -1193,12 +1282,7 @@ function renderProducts() {
   `;
   }).join('');
   
-  // Configurar touch handlers para todas las galerías después del render
-  setTimeout(() => {
-    Object.values(galleries).forEach(gallery => {
-      gallery.setupTouchHandlers();
-    });
-  }, 200);
+  console.log('✅ Productos renderizados correctamente');
 }
 function addToCart(productId) {
   const product = products.find(p => p.id === productId);
@@ -1921,22 +2005,34 @@ async function loadLogs() {
 }
 
 
-// Gallery control functions
+// Gallery control functions - versión robusta
 function galleryNext(productId) {
-  if (galleries[productId]) {
-    galleries[productId].next();
+  try {
+    if (galleries[productId] && galleries[productId].images.length > 1) {
+      galleries[productId].next();
+    }
+  } catch (error) {
+    console.error('Error en galleryNext:', error);
   }
 }
 
 function galleryPrev(productId) {
-  if (galleries[productId]) {
-    galleries[productId].prev();
+  try {
+    if (galleries[productId] && galleries[productId].images.length > 1) {
+      galleries[productId].prev();
+    }
+  } catch (error) {
+    console.error('Error en galleryPrev:', error);
   }
 }
 
 function galleryGoTo(productId, index) {
-  if (galleries[productId]) {
-    galleries[productId].goTo(index);
+  try {
+    if (galleries[productId] && index >= 0 && index < galleries[productId].images.length) {
+      galleries[productId].goTo(index);
+    }
+  } catch (error) {
+    console.error('Error en galleryGoTo:', error);
   }
 }
 
