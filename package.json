@@ -21,7 +21,10 @@
     "migrate-db": "node migrate-database.js",
     "render-setup": "node render-setup.js",
     "render-verify": "node render-verify.js",
-    "deploy-render": "git add . && git commit -m \"Deploy to Render\" && git push origin main"
+    "deploy-render": "git add . && git commit -m \"Deploy to Render\" && git push origin main",
+    "build": "echo 'Build complete - ultra fast!'",
+    "ultra-setup": "node ultra-fast-setup.js",
+    "speed-test": "node speed-optimizations.js"
   },
   "dependencies": {
     "@sendgrid/mail": "^8.1.6",

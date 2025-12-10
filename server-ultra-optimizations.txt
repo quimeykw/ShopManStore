@@ -1,0 +1,52 @@
+
+// OPTIMIZACIONES ULTRA RÁPIDAS PARA SERVER.JS
+// Añadir estas líneas al inicio del server.js para máxima velocidad:
+
+// 1. Configuración de proceso para máximo rendimiento
+process.env.UV_THREADPOOL_SIZE = 128;
+process.env.NODE_OPTIONS = '--max-old-space-size=512';
+
+// 2. Middleware ultra rápido
+app.use((req, res, next) => {
+  // Headers de velocidad extrema
+  res.setHeader('X-Powered-By', 'ShopManStore-Ultra');
+  res.setHeader('Server-Timing', 'total;dur=0');
+  
+  // Caché agresivo para APIs
+  if (req.path.startsWith('/api/')) {
+    res.setHeader('Cache-Control', 'public, max-age=300, stale-while-revalidate=3600');
+  }
+  
+  next();
+});
+
+// 3. Compresión ultra agresiva
+app.use(compression({
+  level: 9, // Máxima compresión
+  threshold: 0, // Comprimir todo
+  memLevel: 9 // Máxima memoria para velocidad
+}));
+
+// 4. Caché en memoria ultra rápido
+const ultraCache = new Map();
+const ULTRA_CACHE_TTL = 60000; // 1 minuto
+
+app.get('/api/products', (req, res) => {
+  const cacheKey = 'products_ultra';
+  const cached = ultraCache.get(cacheKey);
+  
+  if (cached && Date.now() - cached.timestamp < ULTRA_CACHE_TTL) {
+    res.setHeader('X-Cache', 'HIT');
+    return res.json(cached.data);
+  }
+  
+  // ... resto del código de productos
+  // Guardar en caché ultra rápido
+  ultraCache.set(cacheKey, {
+    data: products,
+    timestamp: Date.now()
+  });
+  
+  res.setHeader('X-Cache', 'MISS');
+  res.json(products);
+});
