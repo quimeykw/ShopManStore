@@ -18,7 +18,10 @@
     "recover-products": "node recover-missing-products.js",
     "test-system": "node test-complete-system.js",
     "reset-db": "node reset-database.js",
-    "migrate-db": "node migrate-database.js"
+    "migrate-db": "node migrate-database.js",
+    "render-setup": "node render-setup.js",
+    "render-verify": "node render-verify.js",
+    "deploy-render": "git add . && git commit -m \"Deploy to Render\" && git push origin main"
   },
   "dependencies": {
     "@sendgrid/mail": "^8.1.6",

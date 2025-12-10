@@ -3,7 +3,7 @@ services:
     name: shopmanstore
     env: node
     plan: free
-    buildCommand: npm install
+    buildCommand: npm install && node render-setup.js
     startCommand: npm start
     healthCheckPath: /health
     envVars:
