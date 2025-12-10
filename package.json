@@ -12,7 +12,13 @@
     "test": "jest --verbose",
     "test:watch": "jest --watch",
     "test:email": "node test-email-recovery.js",
-    "test:whatsapp": "node test-purchase-notification.js"
+    "test:whatsapp": "node test-purchase-notification.js",
+    "force-update": "node force-update-products.js",
+    "force-cache": "node force-cache-refresh.js",
+    "recover-products": "node recover-missing-products.js",
+    "test-system": "node test-complete-system.js",
+    "reset-db": "node reset-database.js",
+    "migrate-db": "node migrate-database.js"
   },
   "dependencies": {
     "@sendgrid/mail": "^8.1.6",
