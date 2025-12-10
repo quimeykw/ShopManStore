@@ -1,12 +1,15 @@
 # Implementation Plan
 
-- [ ] 1. Set up enhanced database schema and payment infrastructure
+- [-] 1. Set up enhanced database schema and payment infrastructure
+
   - Create payment_logs table for transaction tracking
   - Add new columns to orders table (transaction_id, payment_status, card_last_four, card_type)
   - Update database initialization script to include new schema
   - _Requirements: 4.1, 4.2, 4.3, 4.4_
 
+
 - [ ] 1.1 Write property test for database schema integrity
+
   - **Property 3: Order persistence completeness**
   - **Validates: Requirements 1.4, 4.1**
 

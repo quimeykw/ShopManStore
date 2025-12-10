@@ -1173,13 +1173,24 @@ async function handleForgotPassword() {
 }
 
 // Products
-async function loadProducts() {
+async function loadProducts(page = 1, limit = 20) {
   try {
-    const res = await fetch(API + '/products');
-    products = await res.json();
+    const res = await fetch(`${API}/products?page=${page}&limit=${limit}`);
+    const data = await res.json();
+    
+    // Manejar respuesta con paginación o sin ella (compatibilidad)
+    if (data.products) {
+      products = data.products;
+      // Guardar info de paginación para uso futuro
+      window.productsPagination = data.pagination;
+    } else {
+      // Respuesta antigua sin paginación
+      products = data;
+    }
+    
     renderProducts();
   } catch (err) {
-    console.error(err);
+    console.error('Error loading products:', err);
   }
 }
 

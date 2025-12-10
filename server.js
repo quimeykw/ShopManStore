@@ -28,15 +28,36 @@ try {
   console.error('Error al configurar Mercado Pago:', error.message);
 }
 
-// Optimizaciones de rendimiento
-app.use(compression()); // Comprimir respuestas HTTP
+// Optimizaciones de rendimiento avanzadas
+app.use(compression({
+  level: 6, // Nivel de compresión óptimo
+  threshold: 1024, // Solo comprimir archivos > 1KB
+  filter: (req, res) => {
+    // No comprimir si ya está comprimido
+    if (req.headers['x-no-compression']) return false;
+    // Usar filtro por defecto de compression
+    return compression.filter(req, res);
+  }
+}));
+
 app.use(cors());
 app.use(express.json({ limit: '50mb' }));
 
-// Servir archivos estáticos con caché
+// Servir archivos estáticos con caché agresivo
 app.use(express.static(path.join(__dirname, 'public'), {
-  maxAge: '1d', // Cachear por 1 día
-  etag: true
+  maxAge: '1y', // Cachear por 1 año
+  etag: true,
+  immutable: true, // Marcar como immutable para mejor caché
+  setHeaders: (res, path) => {
+    // Headers específicos por tipo de archivo
+    if (path.endsWith('.html')) {
+      res.setHeader('Cache-Control', 'public, max-age=300'); // 5 minutos para HTML
+    } else if (path.endsWith('.js') || path.endsWith('.css')) {
+      res.setHeader('Cache-Control', 'public, max-age=31536000, immutable'); // 1 año para JS/CSS
+    } else if (path.match(/\.(jpg|jpeg|png|gif|ico|svg|webp)$/)) {
+      res.setHeader('Cache-Control', 'public, max-age=31536000, immutable'); // 1 año para imágenes
+    }
+  }
 }));
 
 // Ruta principal para servir index.html
@@ -278,15 +299,73 @@ app.post('/api/reset-password', (req, res) => {
   );
 });
 
-// PRODUCTS
+// Cache en memoria para productos (5 minutos)
+let productsCache = null;
+let productsCacheTime = 0;
+const CACHE_DURATION = 5 * 60 * 1000; // 5 minutos
+
+// PRODUCTS con paginación y caché
 app.get('/api/products', (req, res) => {
-  db.all('SELECT * FROM products', (err, rows) => {
-    // Deserializar images de JSON a array
+  const page = parseInt(req.query.page) || 1;
+  const limit = Math.min(parseInt(req.query.limit) || 20, 20); // Máximo 20 items
+  const offset = (page - 1) * limit;
+  
+  // Verificar caché
+  const now = Date.now();
+  if (productsCache && (now - productsCacheTime) < CACHE_DURATION) {
+    // Aplicar paginación al caché
+    const startIndex = offset;
+    const endIndex = offset + limit;
+    const paginatedProducts = productsCache.slice(startIndex, endIndex);
+    
+    res.setHeader('Cache-Control', 'public, max-age=300'); // 5 minutos
+    return res.json({
+      products: paginatedProducts,
+      pagination: {
+        page,
+        limit,
+        total: productsCache.length,
+        totalPages: Math.ceil(productsCache.length / limit)
+      }
+    });
+  }
+  
+  // Consulta optimizada - solo campos necesarios
+  db.all('SELECT id, name, description, price, image, images, sizes, colors, stock FROM products ORDER BY id DESC', (err, rows) => {
+    if (err) return res.status(500).json({ error: 'Error al obtener productos' });
+    
+    // Deserializar images de JSON a array y actualizar caché
     const products = (rows || []).map(row => ({
-      ...row,
-      images: row.images ? JSON.parse(row.images) : (row.image ? [row.image] : [])
+      id: row.id,
+      name: row.name,
+      description: row.description,
+      price: row.price,
+      image: row.image,
+      images: row.images ? JSON.parse(row.images) : (row.image ? [row.image] : []),
+      sizes: row.sizes,
+      colors: row.colors,
+      stock: row.stock
     }));
-    res.json(products);
+    
+    // Actualizar caché
+    productsCache = products;
+    productsCacheTime = now;
+    
+    // Aplicar paginación
+    const startIndex = offset;
+    const endIndex = offset + limit;
+    const paginatedProducts = products.slice(startIndex, endIndex);
+    
+    res.setHeader('Cache-Control', 'public, max-age=300'); // 5 minutos
+    res.json({
+      products: paginatedProducts,
+      pagination: {
+        page,
+        limit,
+        total: products.length,
+        totalPages: Math.ceil(products.length / limit)
+      }
+    });
   });
 });
 
@@ -323,6 +402,10 @@ app.post('/api/products', auth, isAdmin, (req, res) => {
         console.error('Error creating product:', err);
         return res.status(500).json({ error: 'Error al crear: ' + err.message });
       }
+      
+      // Invalidar caché de productos
+      productsCache = null;
+      
       res.json({ id: this.lastID });
     }
   );
@@ -361,6 +444,10 @@ app.put('/api/products/:id', auth, isAdmin, (req, res) => {
         console.error('Error updating product:', err);
         return res.status(500).json({ error: 'Error al actualizar: ' + err.message });
       }
+      
+      // Invalidar caché de productos
+      productsCache = null;
+      
       res.json({ message: 'Actualizado' });
     }
   );
@@ -369,6 +456,10 @@ app.put('/api/products/:id', auth, isAdmin, (req, res) => {
 app.delete('/api/products/:id', auth, isAdmin, (req, res) => {
   db.run('DELETE FROM products WHERE id=?', [req.params.id], (err) => {
     if (err) return res.status(500).json({ error: 'Error al eliminar' });
+    
+    // Invalidar caché de productos
+    productsCache = null;
+    
     res.json({ message: 'Eliminado' });
   });
 });
@@ -697,14 +788,21 @@ app.post('/api/mp-link', auth, async (req, res) => {
   }
 });
 
-// Health check endpoint (para keep-alive services)
+// Health check endpoint optimizado (para keep-alive services)
 app.get('/health', (req, res) => {
+  // Respuesta ultra rápida sin consultas DB
+  res.setHeader('Cache-Control', 'no-cache');
   res.status(200).json({ 
     status: 'ok', 
     timestamp: new Date().toISOString(),
     uptime: Math.floor(process.uptime()),
     environment: process.env.NODE_ENV || 'development'
   });
+});
+
+// Endpoint de ping interno para keep-alive
+app.get('/ping', (req, res) => {
+  res.status(200).send('pong');
 });
 
 // Catch-all route para SPA (debe ir al final)
@@ -717,7 +815,52 @@ app.get('*', (req, res) => {
   }
 });
 
+// Sistema de keep-alive interno para evitar cold starts
+const KEEP_ALIVE_INTERVAL = 5 * 60 * 1000; // 5 minutos
+let keepAliveTimer;
+
+function startKeepAlive() {
+  if (process.env.NODE_ENV === 'production') {
+    keepAliveTimer = setInterval(async () => {
+      try {
+        const response = await fetch(`http://localhost:${PORT}/ping`);
+        if (response.ok) {
+          console.log('✅ Keep-alive ping successful');
+        }
+      } catch (error) {
+        console.log('❌ Keep-alive ping failed:', error.message);
+      }
+    }, KEEP_ALIVE_INTERVAL);
+    
+    console.log('🔄 Keep-alive system started (5 min intervals)');
+  }
+}
+
+function stopKeepAlive() {
+  if (keepAliveTimer) {
+    clearInterval(keepAliveTimer);
+    console.log('⏹️ Keep-alive system stopped');
+  }
+}
+
+// Manejar cierre graceful
+process.on('SIGTERM', () => {
+  console.log('SIGTERM received, shutting down gracefully');
+  stopKeepAlive();
+  process.exit(0);
+});
+
+process.on('SIGINT', () => {
+  console.log('SIGINT received, shutting down gracefully');
+  stopKeepAlive();
+  process.exit(0);
+});
+
 app.listen(PORT, () => {
-  console.log('Server: http://localhost:' + PORT);
-  console.log('Environment: ' + (process.env.NODE_ENV || 'development'));
+  console.log('🚀 Server: http://localhost:' + PORT);
+  console.log('🌍 Environment: ' + (process.env.NODE_ENV || 'development'));
+  console.log('⚡ Optimizations: Compression, Caching, Keep-alive');
+  
+  // Iniciar keep-alive después de que el servidor esté listo
+  setTimeout(startKeepAlive, 10000); // Esperar 10 segundos
 });

@@ -1,10 +1,15 @@
 # Plan de Implementación - Optimización de Rendimiento para Render
 
-- [ ] 1. Configurar uptime monitoring y keep-alive
+- [x] 1. Configurar uptime monitoring y keep-alive
+
+
+
+
 - [ ] 1.1 Implementar endpoint de health check
   - Crear ruta `/health` que responda con status del servidor
   - Añadir verificación básica de base de datos y servicios
   - Configurar respuesta rápida sin operaciones pesadas
+
   - _Requisitos: 1.1, 1.3_
 
 - [ ] 1.2 Configurar UptimeRobot para monitoreo externo
@@ -13,7 +18,8 @@
   - Añadir alertas por email para downtime
   - _Requisitos: 1.2, 1.4_
 
-- [ ]* 1.3 Escribir prueba de propiedad para pings automáticos
+- [x]* 1.3 Escribir prueba de propiedad para pings automáticos
+
   - **Propiedad 1: Pings automáticos durante inactividad**
   - **Valida: Requisitos 1.1**
 
@@ -23,9 +29,13 @@
   - Configurar como proceso en background
   - _Requisitos: 1.4_
 
+
+
+
 - [ ]* 1.5 Escribir prueba de propiedad para tiempo de respuesta post-inactividad
   - **Propiedad 3: Tiempo de respuesta post-inactividad**
   - **Valida: Requisitos 1.3**
+
 
 - [ ] 2. Optimizar archivos estáticos y configurar CDN
 - [ ] 2.1 Configurar middleware de archivos estáticos optimizado
@@ -40,9 +50,13 @@
   - Optimizar validación de ETags
   - _Requisitos: 2.5_
 
+
 - [ ]* 2.3 Escribir prueba de propiedad para headers Cache-Control
   - **Propiedad 5: Headers Cache-Control para imágenes**
   - **Valida: Requisitos 2.2**
+
+
+
 
 - [ ]* 2.4 Escribir prueba de propiedad para ETags
   - **Propiedad 6: ETags para archivos CSS/JS**
@@ -54,6 +68,7 @@
   - Verificar configuración de CDN
   - _Requisitos: 2.1_
 
+
 - [ ] 3. Implementar compresión y minificación
 - [ ] 3.1 Configurar middleware de compresión GZIP/Brotli
   - Instalar y configurar compression middleware
@@ -63,6 +78,7 @@
 
 - [ ]* 3.2 Escribir prueba de propiedad para compresión HTTP
   - **Propiedad 12: Compresión HTTP activada**
+
   - **Valida: Requisitos 3.4**
 
 - [ ] 3.3 Implementar minificación de archivos CSS y JS
@@ -101,6 +117,9 @@
   - Añadir preconnect para fonts.googleapis.com
   - _Requisitos: 4.3_
 
+
+
+
 - [ ]* 5.3 Escribir prueba de propiedad para límite de fuentes
   - **Propiedad 16: Límite de familias de fuentes**
   - **Valida: Requisitos 4.3**
@@ -109,6 +128,7 @@
   - Añadir atributo loading="lazy" a todas las imágenes de productos
   - Configurar lazy loading para imágenes no críticas
   - Mantener eager loading para imágenes above-the-fold
+
   - _Requisitos: 4.1_
 
 - [ ]* 5.5 Escribir prueba de propiedad para lazy loading nativo
@@ -118,6 +138,7 @@
 - [ ] 6. Optimizar consultas de base de datos
 - [ ] 6.1 Implementar paginación en endpoints de productos
   - Añadir parámetros page y limit a /api/products
+
   - Configurar límite máximo de 20 items por página
   - Implementar conteo total para navegación
   - _Requisitos: 5.1_
@@ -142,12 +163,16 @@
   - Añadir índices para consultas frecuentes
   - _Requisitos: 5.3, 5.4_
 
-- [ ]* 6.6 Escribir prueba de propiedad para campos reducidos
+- [x]* 6.6 Escribir prueba de propiedad para campos reducidos
+
+
+
   - **Propiedad 20: Campos reducidos en respuestas**
   - **Valida: Requisitos 5.3**
 
 - [ ] 7. Implementar monitoreo de consultas lentas
-- [ ] 7.1 Añadir logging de consultas que excedan 1 segundo
+- [x] 7.1 Añadir logging de consultas que excedan 1 segundo
+
   - Implementar middleware de timing para consultas SQL
   - Configurar alertas para consultas lentas
   - Añadir métricas de rendimiento de base de datos
@@ -156,12 +181,14 @@
 - [ ] 7.2 Crear dashboard de métricas de rendimiento
   - Implementar endpoint /api/metrics para estadísticas
   - Añadir métricas de uptime, tiempo de respuesta y caché
+
   - Configurar logging estructurado para análisis
   - _Requisitos: 5.5_
 
 - [ ]* 7.3 Escribir prueba de propiedad para reducción mínima por compresión
   - **Propiedad 13: Reducción mínima por compresión**
   - **Valida: Requisitos 3.5**
+
 
 - [ ] 8. Configurar optimizaciones específicas de Render
 - [ ] 8.1 Crear archivo render.yaml optimizado

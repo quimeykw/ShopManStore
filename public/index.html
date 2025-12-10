@@ -3,10 +3,24 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>ShopManStore</title>
+  <title>ShopManStore - Tienda Online</title>
+  <meta name="description" content="ShopManStore - Tu tienda online de confianza con los mejores productos">
+  
+  <!-- Preconnect para acelerar conexiones externas -->
+  <link rel="preconnect" href="https://cdn.tailwindcss.com">
+  <link rel="preconnect" href="https://cdnjs.cloudflare.com">
+  <link rel="dns-prefetch" href="https://fonts.googleapis.com">
+  
+  <!-- Favicon optimizado -->
   <link rel="icon" type="image/png" href="logo.png">
-  <script src="https://cdn.tailwindcss.com"></script>
-  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  
+  <!-- Prefetch de recursos críticos -->
+  <link rel="prefetch" href="app.js">
+  
+  <!-- CSS crítico cargado de forma optimizada -->
+  <script src="https://cdn.tailwindcss.com" defer></script>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" media="print" onload="this.media='all'">
+  <noscript><link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css"></noscript>
   <style>
     /* Drag and drop styles */
     [draggable="true"] {
@@ -118,7 +132,7 @@
     <div class="container mx-auto px-4 py-3 sm:py-4">
       <div class="flex flex-col sm:flex-row justify-between items-center gap-3">
         <div class="logo-container">
-          <img src="logo.png" alt="ShopManStore logo" class="logo-image">
+          <img src="logo.png" alt="ShopManStore logo" class="logo-image" fetchpriority="high" width="80" height="80">
           <h1 class="text-xl sm:text-2xl font-bold text-indigo-600">ShopManStore</h1>
         </div>
         <div class="flex flex-wrap gap-2 sm:gap-3 justify-center sm:justify-end items-center">
@@ -390,6 +404,6 @@
     </div>
   </div>
 
-  <script src="app.js?v=2.1"></script>
+  <script src="app.js?v=2.2" defer></script>
 </body>
 </html>
