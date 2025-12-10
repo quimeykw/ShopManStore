@@ -627,18 +627,27 @@ app.get('/api/metrics', auth, isAdmin, (req, res) => {
 });
 
 // MERCADO PAGO
-// Crear pago con Mercado Pago
+// Crear pago con Mercado Pago (formato actualizado con token)
 app.post('/api/mp-payment', auth, async (req, res) => {
   if (!mpPayment) return res.status(503).json({ error: 'MP no configurado' });
   
   try {
     const { items, total, paymentData } = req.body;
     
-    // Crear el pago con datos de tarjeta
+    // Validar datos requeridos
+    if (!paymentData.token && !paymentData.card_number) {
+      return res.status(400).json({ 
+        error: 'Se requiere token de tarjeta o datos de tarjeta para testing' 
+      });
+    }
+    
+    // Crear el pago con el nuevo formato
     const body = {
       transaction_amount: Number(total),
-      description: items.map(i => `${i.name} x${i.qty}`).join(', '),
+      description: items.map(i => `${i.name} x${i.quantity || i.qty || 1}`).join(', '),
       payment_method_id: paymentData.payment_method_id || 'visa',
+      
+      // Datos del pagador
       payer: {
         email: req.user.email || req.user.username + '@shopmanstore.com',
         identification: {
@@ -646,24 +655,50 @@ app.post('/api/mp-payment', auth, async (req, res) => {
           number: paymentData.identification_number || '12345678'
         }
       },
-      // Datos de la tarjeta (solo para testing)
-      card_number: paymentData.card_number,
-      cardholder: {
-        name: paymentData.cardholder_name,
-        identification: {
-          type: paymentData.identification_type || 'DNI',
-          number: paymentData.identification_number
+      
+      // Usar token si está disponible (producción), sino datos directos (testing)
+      ...(paymentData.token ? {
+        token: paymentData.token
+      } : {
+        // Formato legacy para testing (puede fallar en producción)
+        card: {
+          number: paymentData.card_number,
+          security_code: paymentData.security_code,
+          expiration_month: parseInt(paymentData.expiration_month),
+          expiration_year: parseInt(paymentData.expiration_year),
+          cardholder: {
+            name: paymentData.cardholder_name,
+            identification: {
+              type: paymentData.identification_type || 'DNI',
+              number: paymentData.identification_number || '12345678'
+            }
+          }
         }
-      },
-      security_code: paymentData.security_code,
-      expiration_month: paymentData.expiration_month,
-      expiration_year: paymentData.expiration_year,
-      installments: paymentData.installments || 1
+      }),
+      
+      installments: parseInt(paymentData.installments) || 1,
+      
+      // Información adicional para mejor procesamiento
+      additional_info: {
+        items: items.map(item => ({
+          id: item.id?.toString() || 'item',
+          title: item.name,
+          description: item.name,
+          category_id: 'clothing',
+          quantity: item.quantity || item.qty || 1,
+          unit_price: Number(item.price)
+        })),
+        payer: {
+          first_name: paymentData.cardholder_name?.split(' ')[0] || 'Cliente',
+          last_name: paymentData.cardholder_name?.split(' ').slice(1).join(' ') || 'ShopManStore'
+        }
+      }
     };
     
     console.log('Procesando pago MP:', {
       amount: body.transaction_amount,
       method: body.payment_method_id,
+      hasToken: !!paymentData.token,
       user: req.user.username
     });
     
@@ -719,7 +754,18 @@ app.post('/api/mp-payment', auth, async (req, res) => {
     });
   } catch (err) {
     console.error('MP Payment Error:', err);
-    res.status(500).json({ error: err.message || 'Error al procesar el pago' });
+    
+    // Proporcionar información más detallada del error
+    let errorMessage = 'Error al procesar el pago';
+    if (err.message) {
+      errorMessage = err.message;
+    }
+    
+    res.status(500).json({ 
+      error: errorMessage,
+      details: err.cause || [],
+      suggestion: 'Usa el método de pago por link (/api/mp-link) que es más seguro y confiable'
+    });
   }
 });
 
