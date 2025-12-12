@@ -1835,6 +1835,9 @@ async function previewImages() {
     // Update currentImages from manager
     currentImages = imageManager.getImages();
     
+    // Show preview button if there are images
+    updatePreviewButton();
+    
     // Attach drag handlers after adding images
     setTimeout(() => {
       if (dragDropHandler) {
@@ -2250,3 +2253,210 @@ window.addEventListener('DOMContentLoaded', () => {
     );
   }
 });
+
+// ===== IMAGE PREVIEW MODAL FUNCTIONS =====
+
+let previewImages = [];
+let currentPreviewIndex = 0;
+
+// Update preview button visibility
+function updatePreviewButton() {
+  const previewBtn = $('previewImagesBtn');
+  if (imageManager && imageManager.images.length > 0) {
+    previewBtn.classList.remove('hidden');
+  } else {
+    previewBtn.classList.add('hidden');
+  }
+}
+
+// Open image preview modal
+function openImagePreviewModal() {
+  if (!imageManager || imageManager.images.length === 0) {
+    alert('No hay imágenes para previsualizar');
+    return;
+  }
+  
+  previewImages = imageManager.images;
+  currentPreviewIndex = 0;
+  
+  const modal = $('imagePreviewModal');
+  modal.classList.remove('hidden');
+  
+  updatePreviewDisplay();
+  generatePreviewThumbnails();
+  
+  // Prevent body scroll
+  document.body.style.overflow = 'hidden';
+}
+
+// Close image preview modal
+function closeImagePreviewModal() {
+  const modal = $('imagePreviewModal');
+  modal.classList.add('hidden');
+  
+  // Restore body scroll
+  document.body.style.overflow = '';
+}
+
+// Update preview display
+function updatePreviewDisplay() {
+  if (previewImages.length === 0) return;
+  
+  const mainImage = $('previewMainImage');
+  const counter = $('previewCounter');
+  const imageInfo = $('previewImageInfo');
+  const prevBtn = $('previewPrevBtn');
+  const nextBtn = $('previewNextBtn');
+  
+  // Update main image
+  mainImage.src = previewImages[currentPreviewIndex].base64;
+  
+  // Update counter
+  counter.textContent = `${currentPreviewIndex + 1} / ${previewImages.length}`;
+  
+  // Update image info
+  const currentImg = previewImages[currentPreviewIndex];
+  imageInfo.innerHTML = `
+    <div class="flex justify-center gap-6 text-sm">
+      <span><i class="fas fa-file-image mr-1"></i>${currentImg.filename}</span>
+      <span><i class="fas fa-weight-hanging mr-1"></i>${formatSize(currentImg.sizeKB)}</span>
+      ${currentImg.width && currentImg.height ? 
+        `<span><i class="fas fa-expand-arrows-alt mr-1"></i>${currentImg.width}x${currentImg.height}px</span>` : 
+        ''
+      }
+    </div>
+  `;
+  
+  // Update navigation buttons
+  prevBtn.style.display = previewImages.length > 1 ? 'flex' : 'none';
+  nextBtn.style.display = previewImages.length > 1 ? 'flex' : 'none';
+  
+  // Update thumbnail highlights
+  updatePreviewThumbnails();
+}
+
+// Generate thumbnail strip
+function generatePreviewThumbnails() {
+  const container = $('previewThumbnails');
+  
+  container.innerHTML = previewImages.map((img, index) => `
+    <div class="flex-shrink-0">
+      <img src="${img.base64}" 
+           onclick="goToPreviewImage(${index})"
+           class="w-16 h-16 object-cover rounded cursor-pointer transition-all duration-200 ${
+             index === currentPreviewIndex ? 
+             'ring-2 ring-blue-500 scale-110 opacity-100' : 
+             'opacity-60 hover:opacity-100 hover:scale-105'
+           }">
+    </div>
+  `).join('');
+}
+
+// Update thumbnail highlights
+function updatePreviewThumbnails() {
+  const thumbnails = $('previewThumbnails').querySelectorAll('img');
+  thumbnails.forEach((thumb, index) => {
+    if (index === currentPreviewIndex) {
+      thumb.className = 'w-16 h-16 object-cover rounded cursor-pointer transition-all duration-200 ring-2 ring-blue-500 scale-110 opacity-100';
+    } else {
+      thumb.className = 'w-16 h-16 object-cover rounded cursor-pointer transition-all duration-200 opacity-60 hover:opacity-100 hover:scale-105';
+    }
+  });
+}
+
+// Navigation functions
+function previewNextImage() {
+  if (previewImages.length > 1) {
+    currentPreviewIndex = (currentPreviewIndex + 1) % previewImages.length;
+    updatePreviewDisplay();
+  }
+}
+
+function previewPrevImage() {
+  if (previewImages.length > 1) {
+    currentPreviewIndex = (currentPreviewIndex - 1 + previewImages.length) % previewImages.length;
+    updatePreviewDisplay();
+  }
+}
+
+function goToPreviewImage(index) {
+  if (index >= 0 && index < previewImages.length) {
+    currentPreviewIndex = index;
+    updatePreviewDisplay();
+  }
+}
+
+// Download current image
+function downloadCurrentImage() {
+  if (previewImages.length === 0) return;
+  
+  const currentImg = previewImages[currentPreviewIndex];
+  const link = document.createElement('a');
+  link.href = currentImg.base64;
+  link.download = currentImg.filename || `imagen-${currentPreviewIndex + 1}.jpg`;
+  document.body.appendChild(link);
+  link.click();
+  document.body.removeChild(link);
+}
+
+// Remove current image
+function removeCurrentImage() {
+  if (previewImages.length === 0) return;
+  
+  const confirmDelete = confirm(`¿Estás seguro de que quieres eliminar "${previewImages[currentPreviewIndex].filename}"?`);
+  
+  if (confirmDelete) {
+    // Remove from imageManager
+    imageManager.removeImage(currentPreviewIndex);
+    
+    // Update preview arrays
+    previewImages = imageManager.images;
+    
+    // Update current index
+    if (currentPreviewIndex >= previewImages.length) {
+      currentPreviewIndex = Math.max(0, previewImages.length - 1);
+    }
+    
+    // Update displays
+    if (previewImages.length === 0) {
+      closeImagePreviewModal();
+      updatePreviewButton();
+    } else {
+      updatePreviewDisplay();
+      generatePreviewThumbnails();
+    }
+  }
+}
+
+// Format file size
+function formatSize(sizeKB) {
+  if (sizeKB < 1024) {
+    return `${Math.round(sizeKB)} KB`;
+  } else {
+    return `${(sizeKB / 1024).toFixed(1)} MB`;
+  }
+}
+
+// Keyboard navigation for preview modal
+document.addEventListener('keydown', (e) => {
+  const modal = $('imagePreviewModal');
+  if (modal && !modal.classList.contains('hidden')) {
+    if (e.key === 'ArrowLeft') {
+      previewPrevImage();
+    } else if (e.key === 'ArrowRight') {
+      previewNextImage();
+    } else if (e.key === 'Escape') {
+      closeImagePreviewModal();
+    } else if (e.key === 'Delete' || e.key === 'Backspace') {
+      e.preventDefault();
+      removeCurrentImage();
+    }
+  }
+});
+
+// Update ImageUploadManager render to show preview button
+const originalRender = ImageUploadManager.prototype.render;
+ImageUploadManager.prototype.render = function() {
+  originalRender.call(this);
+  updatePreviewButton();
+};

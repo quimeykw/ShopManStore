@@ -292,6 +292,12 @@
       <div id="uploadProgress" class="hidden"></div>
       
       <div id="imagePreview" class="grid grid-cols-3 gap-2 mb-3"></div>
+      
+      <!-- Preview Images Button -->
+      <button type="button" id="previewImagesBtn" onclick="openImagePreviewModal()" 
+              class="w-full bg-blue-600 text-white p-2 rounded mb-2 min-h-[44px] hidden">
+        <i class="fas fa-eye mr-2"></i>Vista Previa de Imágenes
+      </button>
       <button id="saveProduct" class="w-full bg-indigo-600 text-white p-2 rounded mb-2 min-h-[44px]">Guardar</button>
       <button id="cancelProduct" class="w-full bg-gray-300 p-2 rounded min-h-[44px]">Cancelar</button>
     </div>
@@ -401,6 +407,77 @@
         </button>
         <button type="button" id="cancelCard" class="w-full bg-gray-300 p-2 rounded">Cancelar</button>
       </form>
+    </div>
+  </div>
+
+  <!-- Image Preview Modal -->
+  <div id="imagePreviewModal" class="hidden fixed inset-0 bg-black bg-opacity-90 flex items-center justify-center z-60">
+    <div class="relative w-full h-full flex flex-col items-center justify-center p-4">
+      <!-- Header -->
+      <div class="absolute top-4 left-0 right-0 flex justify-between items-center px-4 z-10">
+        <h2 class="text-white text-xl font-bold">
+          <i class="fas fa-eye mr-2"></i>Vista Previa de Imágenes
+        </h2>
+        <button onclick="closeImagePreviewModal()" class="text-white text-3xl hover:text-gray-300">
+          <i class="fas fa-times"></i>
+        </button>
+      </div>
+      
+      <!-- Main Image Display -->
+      <div class="flex-1 flex items-center justify-center max-w-6xl max-h-screen">
+        <div class="relative">
+          <!-- Previous button -->
+          <button id="previewPrevBtn" onclick="previewPrevImage()" 
+                  class="absolute left-4 top-1/2 transform -translate-y-1/2 bg-white bg-opacity-20 hover:bg-opacity-30 text-white rounded-full w-12 h-12 flex items-center justify-center z-10">
+            <i class="fas fa-chevron-left text-2xl"></i>
+          </button>
+          
+          <!-- Image -->
+          <img id="previewMainImage" src="" class="max-w-full max-h-[70vh] object-contain rounded-lg shadow-2xl">
+          
+          <!-- Next button -->
+          <button id="previewNextBtn" onclick="previewNextImage()" 
+                  class="absolute right-4 top-1/2 transform -translate-y-1/2 bg-white bg-opacity-20 hover:bg-opacity-30 text-white rounded-full w-12 h-12 flex items-center justify-center z-10">
+            <i class="fas fa-chevron-right text-2xl"></i>
+          </button>
+        </div>
+      </div>
+      
+      <!-- Bottom Controls -->
+      <div class="absolute bottom-4 left-0 right-0 px-4">
+        <!-- Image Counter -->
+        <div class="text-center mb-4">
+          <span id="previewCounter" class="text-white text-lg font-semibold bg-black bg-opacity-50 px-4 py-2 rounded-full">
+            1 / 1
+          </span>
+        </div>
+        
+        <!-- Thumbnail Strip -->
+        <div id="previewThumbnails" class="flex justify-center gap-2 mb-4 overflow-x-auto max-w-full">
+          <!-- Thumbnails will be inserted here -->
+        </div>
+        
+        <!-- Action Buttons -->
+        <div class="flex justify-center gap-4">
+          <button onclick="downloadCurrentImage()" 
+                  class="bg-blue-600 hover:bg-blue-700 text-white px-6 py-3 rounded-lg transition">
+            <i class="fas fa-download mr-2"></i>Descargar
+          </button>
+          <button onclick="removeCurrentImage()" 
+                  class="bg-red-600 hover:bg-red-700 text-white px-6 py-3 rounded-lg transition">
+            <i class="fas fa-trash mr-2"></i>Eliminar
+          </button>
+          <button onclick="closeImagePreviewModal()" 
+                  class="bg-green-600 hover:bg-green-700 text-white px-6 py-3 rounded-lg transition">
+            <i class="fas fa-check mr-2"></i>Continuar
+          </button>
+        </div>
+        
+        <!-- Image Info -->
+        <div id="previewImageInfo" class="text-center mt-4 text-white text-sm bg-black bg-opacity-50 px-4 py-2 rounded-lg">
+          <!-- Image info will be displayed here -->
+        </div>
+      </div>
     </div>
   </div>
 
